@@ -15,6 +15,8 @@ Currently tested on Android 14 only. Note this is an Xposed app, so it may not w
 
 ## Roadmap
 - [x] Support PIN unlock
+- [x] Run custom command on alternative PIN
+- [x] User interface
 - [ ] Support more lockscreen modes
 - [ ] Add broadcast mode
 - [ ] Zygisk version (?)
