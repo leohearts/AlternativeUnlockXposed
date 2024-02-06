@@ -36,5 +36,11 @@ e.g. : ``for i in `pm list packages | grep -i -E 'telegram|sagernet|twitter|disc
 - [ ] Zygisk version (?)
 
 ## Screenshots
+
 <img width=30% src="https://github.com/leohearts/AlternativeUnlockXposed/assets/24632029/44aea7f0-175f-48e5-8780-8cea14824c3b">
 <img width=30% src="https://github.com/leohearts/AlternativeUnlockXposed/assets/24632029/f2700aa3-6a12-4ca4-980b-c2863707892b">
+
+## Credit
+
+- [Duress](https://play.google.com/store/apps/details?id=me.lucky.duress&hl=en&gl=US) (for this idea)
+- Google Bard (for app icon)
