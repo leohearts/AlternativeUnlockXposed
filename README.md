@@ -13,6 +13,16 @@ Unlike [Duress](https://play.google.com/store/apps/details?id=me.lucky.duress&hl
 
 Currently tested on Android 14 only. Note this is an Xposed app, so it may not work on older Android versions.
 
+## HowToUse
+
+- Install Magisk
+- Install LSPosed
+- Install this module
+- Activate this module in LSPosed settings (It automatically enables for SystemUI)
+- Launch AlternativeUnlockXposed, allow superuser access, set your primary password and alternative password
+- (optional) Setup what to do when entered the alternative PIN: change action to sudo, and set your command.
+e.g. : ``for i in `pm list packages | grep -i -E 'telegram|sagernet|twitter|discord|tinder' | cut -d : -f 2` ; do pm disable $i; done``
+
 ## Roadmap
 - [x] Support PIN unlock
 - [x] Run custom command on alternative PIN
