@@ -14,6 +14,7 @@ Unlike [Duress](https://play.google.com/store/apps/details?id=me.lucky.duress&hl
 - Alternative PIN to unlock phone
 - Run command on alternative PIN, with root
 - Easy to use user interface
+- Material You design
 
 Currently tested on Android 14 only. Note this is an Xposed app, so it may not work on older Android versions.
 
@@ -37,8 +38,8 @@ e.g. : ``for i in `pm list packages | grep -i -E 'telegram|sagernet|twitter|disc
 
 ## Screenshots
 
-<img width=30% src="https://github.com/leohearts/AlternativeUnlockXposed/assets/24632029/44aea7f0-175f-48e5-8780-8cea14824c3b">
-<img width=30% src="https://github.com/leohearts/AlternativeUnlockXposed/assets/24632029/f2700aa3-6a12-4ca4-980b-c2863707892b">
+<img width=30% src="https://github.com/leohearts/AlternativeUnlockXposed/assets/24632029/dc4e953e-84d3-44d2-90f8-1fabee249f62">
+<img width=30% src="https://github.com/leohearts/AlternativeUnlockXposed/assets/24632029/14464a95-1d45-47fa-8fc1-1b70584adc46">
 
 ## Credit
 
