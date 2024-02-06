@@ -3,7 +3,7 @@ Unlock your Android phone with an alternative PIN. (Xposed, Root)
 
 This app provides an reliable way to run something when providing a specific, wrong PIN on your Android lock screen.
 
-Unlike [Duress](https://play.google.com/store/apps/details?id=me.lucky.duress&hl=en&gl=US), this app uses Xposed Framework so you can also unlock your phone with a wrong PIN, preventing some *social engineering vulunability* :)
+Unlike [Duress](https://play.google.com/store/apps/details?id=me.lucky.duress&hl=en&gl=US), this app uses Xposed Framework so you can also unlock your phone with a wrong PIN, preventing some *social engineering vulunability*😇 And by the way it also works before your first unlock after reboot.
 
 ## Feature
 
