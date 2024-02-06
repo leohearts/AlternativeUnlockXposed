@@ -13,3 +13,7 @@ Unlike [Duress](https://play.google.com/store/apps/details?id=me.lucky.duress&hl
 
 
 Currently tested on Android 14 only. Note this is an Xposed app, so it may not work on older Android versions.
+
+## Screenshots
+![image](https://github.com/leohearts/AlternativeUnlockXposed/assets/24632029/44aea7f0-175f-48e5-8780-8cea14824c3b)
+![image](https://github.com/leohearts/AlternativeUnlockXposed/assets/24632029/f2700aa3-6a12-4ca4-980b-c2863707892b)
