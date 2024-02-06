@@ -1,5 +1,9 @@
-# AlternativeUnlockXposed
-Unlock your Android phone with an alternative PIN. (Xposed, Root)
+<p align="center">
+<image style="height:200px;display:inline" src="https://github.com/leohearts/AlternativeUnlockXposed/assets/24632029/c34ef40f-6968-418b-8a4a-62667708187b" height="200px" />
+<h1 align="center">AlternativeUnlockXposed</h1>
+<small><p align="center"><img src='https://img.shields.io/github/v/release/leohearts/AlternativeUnlockXposed'></p></small>
+<b><i><p align="center">Unlock your Android phone with an alternative PIN. (Xposed, Root)</p></i></b>
+</p>
 
 This app provides an reliable way to run something when providing a specific, wrong PIN on your Android lock screen.
 
