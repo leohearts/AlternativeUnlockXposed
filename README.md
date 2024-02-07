@@ -44,6 +44,7 @@ e.g. : ``for i in `pm list packages | grep -i -E 'telegram|sagernet|twitter|disc
 ## How does it work ?
 
 When fake password provided, this module detects the input and replace it with the real password. So providing fake password and real password both unlocks , regardless of it's the first unlock or not.
+
 And since it will be replaced with the real password, the fake password can also successfully decrypt phone after reboot.
 
 ## Credit
