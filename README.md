@@ -35,6 +35,7 @@ e.g. : ``for i in `pm list packages | grep -i -E 'telegram|sagernet|twitter|disc
 - [ ] Support more lockscreen modes
 - [ ] Add broadcast mode
 - [ ] Zygisk version (?)
+- [ ] Require authentication for settings activity
 
 ## Screenshots
 
