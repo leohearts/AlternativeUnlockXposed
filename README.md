@@ -41,6 +41,12 @@ e.g. : ``for i in `pm list packages | grep -i -E 'telegram|sagernet|twitter|disc
 <img width=30% src="https://github.com/leohearts/AlternativeUnlockXposed/assets/24632029/dc4e953e-84d3-44d2-90f8-1fabee249f62">
 <img width=30% src="https://github.com/leohearts/AlternativeUnlockXposed/assets/24632029/14464a95-1d45-47fa-8fc1-1b70584adc46">
 
+## How does it work ?
+
+When fake password provided, this module detects the input and replace it with the real password. So providing fake password and real password both unlocks , regardless of it's the first unlock or not.
+
+And since it will be replaced with the real password, it can also successfully decrypt the phone after reboot.
+
 ## Credit
 
 - [Duress](https://play.google.com/store/apps/details?id=me.lucky.duress&hl=en&gl=US) (for this idea)
