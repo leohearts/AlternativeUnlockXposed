@@ -36,6 +36,7 @@ e.g. : ``for i in `pm list packages | grep -i -E 'telegram|sagernet|twitter|disc
 - [ ] Add broadcast mode
 - [ ] Zygisk version (?)
 - [ ] Require authentication for settings activity
+- [ ] Option to hide the app from launcher 
 
 ## Screenshots
 
