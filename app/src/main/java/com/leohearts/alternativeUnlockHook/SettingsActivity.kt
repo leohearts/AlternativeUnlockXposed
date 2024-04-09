@@ -12,6 +12,7 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Face
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -210,7 +211,7 @@ fun SettingsBase( modifier: Modifier = Modifier) {
                         supportingContent = { Text("Load config every time your phone unlocks. Otherwise, you'll need to restart SystemUI to apply changes.") },
                         leadingContent = {
                             Icon(
-                                Icons.Rounded.Refresh,
+                                Icons.Rounded.Settings,
                                 contentDescription = "Localized description",
                             )
                         },
@@ -222,6 +223,20 @@ fun SettingsBase( modifier: Modifier = Modifier) {
                                     config.setProperty("dynamicLoad", dynamicLoadchecked)
                                     saveConfig(config, scope, snackbarHostState)
                                 }
+                            )
+                        }
+                    )
+                }
+                Surface(onClick = {
+                    sudo("killall com.android.systemui")
+                }) {
+                    ListItem(
+                        headlineContent = { Text("Restart SystemUI") },
+                        supportingContent = { Text("Run killall com.android.systemui") },
+                        leadingContent = {
+                            Icon(
+                                Icons.Rounded.Refresh,
+                                contentDescription = "Localized description",
                             )
                         }
                     )
