@@ -18,7 +18,11 @@ Unlike [Duress](https://play.google.com/store/apps/details?id=me.lucky.duress&hl
 - Easy to use user interface
 - Material You design
 
-Currently tested on Android 14 only. Note this is an Xposed app, so it may not work on older Android versions.
+Currently tested on:
+- Android 14 (arm64)
+- Android 13 (x86_64)
+
+It *should* also work on other architectures .
 
 ## HowToUse
 
