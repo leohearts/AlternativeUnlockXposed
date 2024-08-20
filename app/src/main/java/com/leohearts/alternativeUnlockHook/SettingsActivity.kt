@@ -78,9 +78,12 @@ fun listDivider(): Unit {
         .padding(horizontal = 16.dp)
         .padding(vertical = 30.dp))
 }
+fun setPermission() {
+    sudo("chown system:system /data/local/tmp/alternativePass.properties;setenforce 0;chcon u:object_r:platform_app:s0 /data/local/tmp/alternativePass.properties;setenforce 1")
+}
 fun saveConfig(config: Properties, scope: CoroutineScope, snackbarHostState: SnackbarHostState) {
     config.store(sudo("cat > /data/local/tmp/alternativePass.properties").outputStream, "")
-    sudo("chown system:system /data/local/tmp/alternativePass.properties")
+    setPermission()
     scope.launch {
         snackbarHostState.showSnackbar(
             "Saved to config file"
