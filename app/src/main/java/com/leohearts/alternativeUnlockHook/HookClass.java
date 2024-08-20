@@ -47,9 +47,9 @@ public class HookClass implements IXposedHookLoadPackage {
             Properties properties = new Properties();
             properties.load(new FileReader("/data/local/tmp/alternativePass.properties"));
             fakePassword = properties.getProperty("fakePassword", "114514");
-            realPassword = properties.getProperty("realPassword", "1919810");
+            realPassword = properties.getProperty("realPassword", "1919810"); // nobody sets 1919810 as real password , right ???
             actionType = properties.getProperty("actionType", "sh");
-            actionCommand = properties.getProperty("actionCommand", "whoami");
+            actionCommand = properties.getProperty("actionCommand", "whoami"); // dont do anything if unset
             dynamicLoad = properties.getProperty("dynamicLoad", "false");
         } catch (Exception e) {
             if (e.getClass() != FileNotFoundException.class){
