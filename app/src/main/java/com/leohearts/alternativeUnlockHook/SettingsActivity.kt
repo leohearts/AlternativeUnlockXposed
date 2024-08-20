@@ -165,7 +165,7 @@ fun SettingsBase( modifier: Modifier = Modifier) {
                 }) {
                     ListItem(
                         headlineContent = { Text("When fake password provided") },
-                        supportingContent = { Text(config.getProperty("actionType", "sh")) },
+                        supportingContent = { Text(config.getProperty("actionType", "sudo")) },
                         leadingContent = {
                             Icon(
                                 Icons.Rounded.Close,
