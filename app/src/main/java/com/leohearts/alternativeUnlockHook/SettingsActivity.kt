@@ -165,7 +165,7 @@ fun SettingsBase( modifier: Modifier = Modifier) {
                 }) {
                     ListItem(
                         headlineContent = { Text("When fake password provided") },
-                        supportingContent = { Text(config.getProperty("actionType", "sudo")) },
+                        supportingContent = { Text(config.getProperty("actionType", "sh")) },
                         leadingContent = {
                             Icon(
                                 Icons.Rounded.Close,
@@ -183,7 +183,7 @@ fun SettingsBase( modifier: Modifier = Modifier) {
                 }) {
                     ListItem(
                         headlineContent = { Text("Command") },
-                        supportingContent = { Text(config.getProperty("actionCommand",  "for i in `pm list packages | grep -i -E 'telegram|binance|sagernet|twitter|discord|tinder|mastodon|photos|xplore|fenix|kiwibrowser|metamask|solflare|torbrowser' | cut -d : -f 2` ; do pm disable \$i; done")) },
+                        supportingContent = { Text(config.getProperty("actionCommand",  "whoami")) },
                         leadingContent = {
                             Icon(
                                 Icons.Rounded.ArrowForward,
