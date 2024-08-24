@@ -3,7 +3,6 @@ pluginManagement {
         google()
         mavenCentral()
         gradlePluginPortal()
-        jcenter()
     }
 }
 dependencyResolutionManagement {
@@ -12,9 +11,9 @@ dependencyResolutionManagement {
         google()
         mavenCentral()
         jcenter()
+        maven(url="https://api.xposed.info/")
     }
 }
 
 rootProject.name = "AlternativeUnlockXposed"
 include(":app")
- 
