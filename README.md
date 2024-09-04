@@ -24,6 +24,11 @@ Unlike [Duress](https://play.google.com/store/apps/details?id=me.lucky.duress&hl
 Currently tested on:
 - Android 14 (arm64)
 - Android 13 (x86_64)
+- Android 12 (x64_64)
+- Android 11 (arm64, LOS 18.1)
+
+Currently NOT working on:
+- Android <= 10
 
 It *should* also work on other architectures .
 
@@ -48,6 +53,7 @@ e.g. : ``for i in `pm list packages | grep -i -E 'telegram|sagernet|twitter|disc
 - [x] Support PIN unlock
 - [x] Run custom command on alternative PIN
 - [x] User interface
+- [ ] Run different commands on multiple fake password
 - [ ] Support more lockscreen modes
 - [ ] Add broadcast mode
 - [ ] Zygisk version (?)
