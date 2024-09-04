@@ -12,7 +12,7 @@
 
 This app provides an reliable way to run something when providing a specific, wrong PIN on your Android lock screen.
 
-Unlike [Duress](https://play.google.com/store/apps/details?id=me.lucky.duress&hl=en&gl=US), this app uses Xposed Framework so you can also unlock your phone with a wrong PIN, preventing some *social engineering vulunability*😇 And by the way it also works before your first unlock after reboot.
+Unlike [Duress](https://play.google.com/store/apps/details?id=me.lucky.duress&hl=en&gl=US), this app uses Xposed Framework so you can also unlock your phone with a *wrong* PIN, preventing some *social engineering vulunability*😇 And by the way it also works before your first unlock after reboot.
 
 ## Feature
 
@@ -44,6 +44,8 @@ e.g. : ``for i in `pm list packages | grep -i -E 'telegram|sagernet|twitter|disc
 - Test your unlock after click "Restart SystemUI"
 
 > Pro tip: You can use some automation software to make it easier to customize your commands ! just use a command like `am broadcast -a safety.intent.test` and catch the intent in your favorite app, it could be extended to do some stuff like take a picture, record audio, send a email, etc. like [Automate](https://llamalab.com/automate/) . Note this kind of software can't work before unlock, so just make it an addition to your commands separated with a `;`. 
+
+If you are using this software, please give it a star ⭐ on [Github](https://github.com/leohearts/AlternativeUnlockXposed) so we can know how many people are using it, since it doesn't contain any kind of tracking code.
 
 ## Download 
 
