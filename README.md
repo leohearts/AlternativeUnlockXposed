@@ -45,7 +45,7 @@ e.g. : ``for i in `pm list packages | grep -i -E 'telegram|sagernet|twitter|disc
 
 > Pro tip: You can use some automation software to make it easier to customize your commands ! just use a command like `am broadcast -a safety.intent.test` and catch the intent in your favorite app, it could be extended to do some stuff like take a picture, record audio, send a email, etc. like [Automate](https://llamalab.com/automate/) . Note this kind of software can't work before unlock, so just make it an addition to your commands separated with a `;`. 
 
-If you are using this software, please give it a star ⭐ on [Github](https://github.com/leohearts/AlternativeUnlockXposed) so we can know how many people are using it, since it doesn't contain any kind of tracking code.
+If you are using this software, please consider to give it a star ⭐ on [Github](https://github.com/leohearts/AlternativeUnlockXposed) so we can know how many people are using it, since it doesn't contain any kind of tracking code.
 
 ## Download 
 
