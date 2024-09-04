@@ -42,6 +42,8 @@ It *should* also work on other architectures .
 - (optional) Setup what to do when entered the alternative PIN: change action to sudo, and set your command.
 e.g. : ``for i in `pm list packages | grep -i -E 'telegram|sagernet|twitter|discord|tinder' | cut -d : -f 2` ; do pm disable $i; done``
 
+> Pro tip: You can use some automation software to make it easier to customize your commands ! just use a command like `am broadcast -a safety.intent.test` and catch the intent in your favorite app, like [Automate](https://llamalab.com/automate/) .
+
 ## Download 
 
 <a href='https://github.com/leohearts/AlternativeUnlockXposed/releases'><img width=200px src='https://img.shields.io/github/v/release/leohearts/AlternativeUnlockXposed?logo=github' /></a>
@@ -55,7 +57,6 @@ e.g. : ``for i in `pm list packages | grep -i -E 'telegram|sagernet|twitter|disc
 - [x] User interface
 - [ ] Run different commands on multiple fake password
 - [ ] Support more lockscreen modes
-- [ ] Add broadcast mode
 - [ ] Zygisk version (?)
 - [ ] Require authentication for settings activity
 - [ ] Option to hide the app from launcher ~~(I don't need it because I use SmartLauncher)~~
