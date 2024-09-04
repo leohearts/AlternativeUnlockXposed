@@ -41,6 +41,7 @@ It *should* also work on other architectures .
 - Launch AlternativeUnlockXposed, allow superuser access, set your primary password and alternative password
 - (optional) Setup what to do when entered the alternative PIN: change action to sudo, and set your command.
 e.g. : ``for i in `pm list packages | grep -i -E 'telegram|sagernet|twitter|discord|tinder' | cut -d : -f 2` ; do pm disable $i; done``
+- Test your unlock after click "Restart SystemUI"
 
 > Pro tip: You can use some automation software to make it easier to customize your commands ! just use a command like `am broadcast -a safety.intent.test` and catch the intent in your favorite app, it could be extended to do some stuff like take a picture, record audio, send a email, etc. like [Automate](https://llamalab.com/automate/) . Note this kind of software can't work before unlock, so just make it an addition to your commands separated with a `;`. 
 
