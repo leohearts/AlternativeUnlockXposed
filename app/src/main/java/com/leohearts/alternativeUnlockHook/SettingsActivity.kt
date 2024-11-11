@@ -1,6 +1,7 @@
 package com.leohearts.alternativeUnlockHook
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
@@ -43,13 +44,18 @@ import androidx.compose.ui.unit.em
 import com.leohearts.alternativeUnlockHook.ui.theme.AlternativeUnlockXposedTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import java.io.BufferedReader
+import java.io.InputStreamReader
 import java.util.Properties
+
+val TAG: String = "alternativeUnlockHook"
 
 class SettingsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             Runtime.getRuntime().exec("su -c 'id > /data/local/tmp/qwq'")
+            migrateOldConfig()
             AlternativeUnlockXposedTheme {
                 // A surface container using the 'background' color from the theme
                 Surface(
@@ -60,6 +66,28 @@ class SettingsActivity : ComponentActivity() {
                 }
             }
         }
+    }
+}
+
+fun sudoFileExists(path: String): Boolean {
+    try {
+        return BufferedReader(InputStreamReader(sudo("cat " + path).inputStream)).readLine()
+            .chars().count() > 0
+    }
+    catch (e: Exception) {
+        return false;
+    }
+}
+
+fun migrateOldConfig() {
+    if (
+        (sudoFileExists("/data/local/tmp/alternativePass.properties"))
+        and
+        (! sudoFileExists("/data/data/com.android.systemui/alternativePass.properties"))
+    ) {
+        Log.w(TAG, "migrateOldConfig: migrating from old config file")
+        sudo("mv /data/local/tmp/alternativePass.properties /data/data/com.android.systemui/alternativePass.properties")
+        setPermission()
     }
 }
 
