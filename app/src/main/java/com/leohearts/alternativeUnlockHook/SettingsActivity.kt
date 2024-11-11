@@ -79,10 +79,10 @@ fun listDivider(): Unit {
         .padding(vertical = 30.dp))
 }
 fun setPermission() {
-    sudo("chown system:system /data/local/tmp/alternativePass.properties;setenforce 0;chcon u:object_r:platform_app:s0 /data/local/tmp/alternativePass.properties;setenforce 1")
+    sudo("chown system:system /data/data/com.android.systemui/alternativePass.properties;setenforce 0;chcon u:object_r:platform_app:s0 /data/data/com.android.systemui/alternativePass.properties;setenforce 1")
 }
 fun saveConfig(config: Properties, scope: CoroutineScope, snackbarHostState: SnackbarHostState) {
-    config.store(sudo("cat > /data/local/tmp/alternativePass.properties").outputStream, "")
+    config.store(sudo("cat > /data/data/com.android.systemui/alternativePass.properties").outputStream, "")
     setPermission()
     scope.launch {
         snackbarHostState.showSnackbar(
@@ -109,7 +109,7 @@ fun SettingsBase( modifier: Modifier = Modifier) {
         ) {
             item {
                 val config = Properties();
-                config.load(sudo("cat /data/local/tmp/alternativePass.properties").inputStream)
+                config.load(sudo("cat /data/data/com.android.systemui/alternativePass.properties").inputStream)
 
                 val openDialog = remember { mutableStateOf(false) }
                 val setTitle = rememberSaveable { mutableStateOf("") }

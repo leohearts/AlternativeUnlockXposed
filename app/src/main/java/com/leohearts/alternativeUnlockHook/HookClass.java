@@ -45,7 +45,7 @@ public class HookClass implements IXposedHookLoadPackage {
     public void initConfig(){
         try {
             Properties properties = new Properties();
-            properties.load(new FileReader("/data/local/tmp/alternativePass.properties"));
+            properties.load(new FileReader("/data/data/com.android.systemui/alternativePass.properties"));
             fakePassword = properties.getProperty("fakePassword", "114514");
             realPassword = properties.getProperty("realPassword", "1919810"); // nobody sets 1919810 as real password , right ???
             actionType = properties.getProperty("actionType", "sh");
