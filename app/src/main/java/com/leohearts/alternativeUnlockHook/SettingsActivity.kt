@@ -104,7 +104,7 @@ fun smallTitle(text: String): Unit {
 fun listDivider(): Unit {
     return Divider(modifier = Modifier
         .padding(horizontal = 16.dp)
-        .padding(vertical = 30.dp))
+        .padding(vertical = 24.dp))
 }
 fun setPermission() {
     sudo("chown system:system /data/data/com.android.systemui/alternativePass.properties;setenforce 0;chcon u:object_r:platform_app:s0 /data/data/com.android.systemui/alternativePass.properties;setenforce 1")
@@ -144,6 +144,23 @@ fun SettingsBase( modifier: Modifier = Modifier) {
                 val setKey = rememberSaveable { mutableStateOf("") }
                 val setHint = rememberSaveable { mutableStateOf("") }
 
+                var dynamicLoadchecked by remember {
+                    mutableStateOf(
+                        config.getProperty(
+                            "dynamicLoad",
+                            "false"
+                        )
+                    )
+                }
+                var hideUIPassword by remember {
+                    mutableStateOf(
+                        config.getProperty(
+                            "hideUIPassword",
+                            "false"
+                        )
+                    )
+                }
+
                 smallTitle("Password")
                 Surface(onClick = {
                     openDialog.value = true
@@ -153,7 +170,7 @@ fun SettingsBase( modifier: Modifier = Modifier) {
                 }) {
                     ListItem(
                         headlineContent = { Text("Fake Password") },
-                        supportingContent = { Text(config.getProperty("fakePassword", "")) },
+                        supportingContent = { Text(config.getProperty("fakePassword", "Not set")) },
                         leadingContent = {
                             Icon(
                                 Icons.Rounded.Face,
@@ -171,7 +188,7 @@ fun SettingsBase( modifier: Modifier = Modifier) {
                 }) {
                     ListItem(
                         headlineContent = { Text("Real Password") },
-                        supportingContent = { Text(config.getProperty("realPassword", "")) },
+                        supportingContent = { Text(if (hideUIPassword == "true") "******"  else config.getProperty("realPassword", "Not set")) },
                         leadingContent = {
                             Icon(
                                 Icons.Rounded.Lock,
@@ -224,14 +241,6 @@ fun SettingsBase( modifier: Modifier = Modifier) {
                 listDivider()
                 smallTitle(text = "Debugging")
 
-                var dynamicLoadchecked by remember {
-                    mutableStateOf(
-                        config.getProperty(
-                            "dynamicLoad",
-                            "false"
-                        )
-                    )
-                }
                 Surface(onClick = {
                     dynamicLoadchecked = if (dynamicLoadchecked == "false") "true" else "false"
                     config.setProperty("dynamicLoad", dynamicLoadchecked)
@@ -272,6 +281,39 @@ fun SettingsBase( modifier: Modifier = Modifier) {
                         }
                     )
                 }
+                listDivider()
+                smallTitle(text = "Interface")
+
+                Surface(onClick = {
+                    hideUIPassword = if (hideUIPassword == "false") "true" else "false"
+                    config.setProperty("hideUIPassword", hideUIPassword)
+                    saveConfig(config, scope, snackbarHostState)
+                }) {
+                    ListItem(
+                        headlineContent = { Text("Hide real password from UI") },
+                        supportingContent = { Text("Add some protection to shoulder surfing") },
+                        leadingContent = {
+                            Icon(
+                                Icons.Rounded.Settings,
+                                contentDescription = "icon",
+                            )
+                        },
+                        trailingContent = {
+                            Switch(
+                                checked = (hideUIPassword == "true"),
+                                onCheckedChange = {
+                                    hideUIPassword = if (it) "true" else "false"
+                                    config.setProperty("hideUIPassword", hideUIPassword)
+                                    saveConfig(config, scope, snackbarHostState)
+                                }
+                            )
+                        }
+                    )
+                }
+
+                // config part end
+                listDivider()
+
                 if (openDialog.value) {
                     AlertDialog(
                         onDismissRequest = {
