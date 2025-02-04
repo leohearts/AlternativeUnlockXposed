@@ -49,7 +49,7 @@ import java.io.InputStreamReader
 import java.util.Properties
 
 val TAG: String = "alternativeUnlockHook"
-
+val CONFIG_PATH: String = "/data/local/tmp/alternativePass.properties"
 class SettingsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -81,12 +81,13 @@ fun sudoFileExists(path: String): Boolean {
 
 fun migrateOldConfig() {
     if (
-        (sudoFileExists("/data/local/tmp/alternativePass.properties"))
+        (sudoFileExists("/data/data/com.android.systemui/alternativePass.properties"))
         and
-        (! sudoFileExists("/data/data/com.android.systemui/alternativePass.properties"))
+        (! sudoFileExists(CONFIG_PATH))
+
     ) {
         Log.w(TAG, "migrateOldConfig: migrating from old config file")
-        sudo("mv /data/local/tmp/alternativePass.properties /data/data/com.android.systemui/alternativePass.properties")
+        sudo("mv /data/data/com.android.systemui/alternativePass.properties ${CONFIG_PATH}")
         setPermission()
     }
 }
@@ -107,10 +108,11 @@ fun listDivider(): Unit {
         .padding(vertical = 24.dp))
 }
 fun setPermission() {
-    sudo("chown system:system /data/data/com.android.systemui/alternativePass.properties;setenforce 0;chcon u:object_r:platform_app:s0 /data/data/com.android.systemui/alternativePass.properties;setenforce 1")
+//    sudo("chown system:system /data/data/com.android.systemui/alternativePass.properties;setenforce 0;chcon u:object_r:platform_app:s0 /data/data/com.android.systemui/alternativePass.properties;setenforce 1")
+    sudo("chown `stat /data/data/com.android.systemui/ -c %u`:0 ${CONFIG_PATH}; chmod 770 ${CONFIG_PATH}")
 }
 fun saveConfig(config: Properties, scope: CoroutineScope, snackbarHostState: SnackbarHostState) {
-    config.store(sudo("cat > /data/data/com.android.systemui/alternativePass.properties").outputStream, "")
+    config.store(sudo("cat > ${CONFIG_PATH}").outputStream, "")
     setPermission()
     scope.launch {
         snackbarHostState.showSnackbar(
@@ -137,7 +139,7 @@ fun SettingsBase( modifier: Modifier = Modifier) {
         ) {
             item {
                 val config = Properties();
-                config.load(sudo("cat /data/data/com.android.systemui/alternativePass.properties").inputStream)
+                config.load(sudo("cat ${CONFIG_PATH}").inputStream)
 
                 val openDialog = remember { mutableStateOf(false) }
                 val setTitle = rememberSaveable { mutableStateOf("") }

@@ -17,6 +17,8 @@ import java.util.Properties;
 
 public class HookClass implements IXposedHookLoadPackage {
     public String TAG = "alternativeUnlockHook";
+    public String CONFIG_PATH = "/data/local/tmp/alternativePass.properties";
+
 
     // NOTE: When modifying this, make sure credential sufficiency validation logic is intact.
     public static final int CREDENTIAL_TYPE_NONE = -1;
@@ -49,7 +51,7 @@ public class HookClass implements IXposedHookLoadPackage {
             try {
                 f = new FileReader("/data/data/com.android.systemui/alternativePass.properties");
             } catch (FileNotFoundException e) {
-                f = new FileReader("/data/local/tmp/alternativePass.properties");   // make sure module can work if migration process hasn't been started
+                f = new FileReader(CONFIG_PATH);   // make sure module can work if migration process hasn't been started
             }
             properties.load(f);
             fakePassword = properties.getProperty("fakePassword", "114514");
