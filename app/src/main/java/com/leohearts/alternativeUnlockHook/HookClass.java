@@ -5,6 +5,8 @@ import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
+
+import android.annotation.SuppressLint;
 import android.util.Log;
 
 import java.io.FileNotFoundException;
@@ -44,6 +46,7 @@ public class HookClass implements IXposedHookLoadPackage {
         return Runtime.getRuntime().exec(new String[]{"sh", "-c", cmd});
     }
 
+    @SuppressLint("SdCardPath")
     public void initConfig(){
         try {
             Properties properties = new Properties();
@@ -84,7 +87,8 @@ public class HookClass implements IXposedHookLoadPackage {
                 byte[] cred = (byte[])(XposedHelpers.callMethod(mCredential, "getCredential")); // from android 14
                 String credStr = new String(cred);
                 Log.d(TAG, "credStr: " + credStr);
-                Log.d(TAG, "credType: " + (int)XposedHelpers.callMethod(mCredential, "getType"));
+                int credType = (int)XposedHelpers.callMethod(mCredential, "getType");
+                Log.d(TAG, "credType: " + credType);
                 Log.d(TAG, "credBytes: " + cred.length + Arrays.toString(cred));
                 if (credStr.equals(fakePassword)){
                     Log.i(TAG, "replaceCred: detected");
@@ -96,7 +100,27 @@ public class HookClass implements IXposedHookLoadPackage {
                         }
                     } catch (Exception ignored) {}
                     // replace with real password
-                    param.args[0] = XposedHelpers.callMethod(mCredential, "createPin", (CharSequence) realPassword);
+                    switch (credType) {
+                        case CREDENTIAL_TYPE_PIN:
+                        {
+                            param.args[0] = XposedHelpers.callMethod(mCredential, "createPin", (CharSequence) realPassword);
+                        }
+
+                        case CREDENTIAL_TYPE_PASSWORD:
+                        {
+                            param.args[0] = XposedHelpers.callMethod(mCredential, "createPassword", (CharSequence) realPassword);
+                        }
+                        case CREDENTIAL_TYPE_PATTERN:
+                        {
+                            param.args[0] = XposedHelpers.newInstance(mCredential.getClass(), CREDENTIAL_TYPE_PATTERN, (CharSequence) realPassword);
+                            // this is the not recommended way to modify credential, so we use only in patterns
+                            // You will need to track the logcat with `adb logcat | grep alternativeUnlockHook` for more details about "how to convert my pattern to a string"
+                        }
+                        default:
+                        {
+                            Log.e(TAG, "Unsupported password type, is the system modified or too new ?");
+                        }
+                    }
                     Log.i(TAG, "replaceCred: replaced");
                 }
             }
