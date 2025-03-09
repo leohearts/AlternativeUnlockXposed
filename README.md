@@ -22,6 +22,7 @@ Unlike [Duress](https://play.google.com/store/apps/details?id=me.lucky.duress&hl
 - Material You design
 
 Currently tested on:
+- Android 15 (arm64, LOS 22.1)
 - Android 14 (arm64)
 - Android 13 (x86_64)
 - Android 12 (x64_64)
@@ -59,7 +60,7 @@ If you are using this software, please consider to give it a star ⭐ on [Github
 - [x] Run custom command on alternative PIN
 - [x] User interface
 - [ ] Run different commands on multiple fake password
-- [ ] Support more lockscreen modes
+- [x] Support more lockscreen modes
 - [ ] Zygisk version (?)
 - [ ] Require authentication for settings activity
 - [ ] Option to hide the app from launcher ~~(I don't need it because I use SmartLauncher)~~
