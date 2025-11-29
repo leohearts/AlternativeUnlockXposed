@@ -1,0 +1,35 @@
+com.example.alternateunlock;
+
+import de.robv.android.xposed.IXposedHookLoadPackage;
+import de.robv.android.xposed.XC_MethodHook;
+import de.robv.android.xposed.XposedBridge;
+import de.robv.android.xposed.XposedHelpers;
+import de.robv.android.xposed.callbacks.XC_LoadPackage;
+
+public class Module implements IXposedHookLoadPackage {
+
+    // Main PIN (user’s real password)
+    private static final String REAL_PIN = "1234";
+
+    // Alternate PIN (triggers custom action)
+    private static final String ALT_PIN = "5678";
+
+    @Override
+    public void handleLoadPackage(final XC_LoadPackage.LoadPackageParam lpparam) throws Throwable {
+
+        // Hook into the system UI package (lockscreen logic)
+        if (!lpparam.packageName.equals("com.android.systemui")) return;
+
+        XposedBridge.log("AlternativeUnlockXposed loaded!");
+
+        try {
+            // Find the method in the lockscreen that checks password input
+            XposedHelpers.findAndHookMethod(
+                "com.android.keyguard.PasswordTextView",     // Class
+                lpparam.classLoader,
+                "verifyPassword",                            // Method
+                String.class,                                // The password entered
+                new XC_MethodHook() {
+                    @Override
+                    protected void afterHookedMethod(MethodHookParam param) throws Throwable { 123456 )
+                        String enteredPassword = ( khushhal )
