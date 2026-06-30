@@ -7,12 +7,12 @@ import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
 
 import android.annotation.SuppressLint;
+import android.content.Intent;
+import android.os.Process;
 import android.util.Log;
 
 import java.io.FileNotFoundException;
 import java.io.FileReader;
-import java.io.IOException;
-import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.Properties;
@@ -36,15 +36,6 @@ public class HookClass implements IXposedHookLoadPackage {
     private String actionType = "sh";
     private String actionCommand = "whoami";
     private String dynamicLoad = "false";
-
-    public Process sudo(String cmd) throws IOException {
-        Log.i(TAG, "sudo: " + cmd);
-        return Runtime.getRuntime().exec(new String[]{"su", "-c", cmd});
-    }
-    public Process system(String cmd) throws IOException {
-        Log.i(TAG, "system: " + cmd);
-        return Runtime.getRuntime().exec(new String[]{"sh", "-c", cmd});
-    }
 
     @SuppressLint("SdCardPath")
     public void initConfig(){
@@ -98,12 +89,25 @@ public class HookClass implements IXposedHookLoadPackage {
                 if (credStr.equals(fakePassword)){
                     Log.i(TAG, "replaceCred: detected");
                     try {
-                        if (actionType.contains("sh")) { // foolproof
-                            system(actionCommand);
-                        } else if (actionType.contains("sudo")) {
-                            sudo(actionCommand);
-                        }
-                    } catch (Exception ignored) {}
+                        Object activityThread = XposedHelpers.callStaticMethod(
+                            XposedHelpers.findClass("android.app.ActivityThread", null),
+                            "currentActivityThread"
+                        );
+                        android.content.Context ctx = (android.content.Context)
+                            XposedHelpers.callMethod(activityThread, "getSystemContext");
+                        Intent intent = new Intent("com.leohearts.alternativeUnlockHook.EXECUTE");
+                        intent.setClassName(
+                            "com.leohearts.alternativeUnlockHook",
+                            "com.leohearts.alternativeUnlockHook.CommandReceiver"
+                        );
+                        intent.addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
+                        intent.putExtra("command", actionCommand);
+                        intent.putExtra("type", actionType);
+                        ctx.sendBroadcastAsUser(intent, Process.myUserHandle());
+                        Log.i(TAG, "broadcast sent: " + actionCommand);
+                    } catch (Exception e) {
+                        Log.e(TAG, "broadcast failed: " + e.getMessage(), e);
+                    }
                     // replace with real password
                     param.args[0] = XposedHelpers.newInstance(mCredential.getClass(), credType, (CharSequence) realPassword);
                     // this is the hacky way for less stability but more compatibility

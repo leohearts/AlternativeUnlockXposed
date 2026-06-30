@@ -109,7 +109,7 @@ fun listDivider(): Unit {
 }
 fun setPermission() {
 //    sudo("chown system:system /data/data/com.android.systemui/alternativePass.properties;setenforce 0;chcon u:object_r:platform_app:s0 /data/data/com.android.systemui/alternativePass.properties;setenforce 1")
-    sudo("chown `stat /data/data/com.android.systemui/ -c %u`:0 ${CONFIG_PATH}; chmod 770 ${CONFIG_PATH}")
+    sudo("chown `stat /data/data/com.android.systemui/ -c %u`:`stat /data/data/com.android.systemui/ -c %g` ${CONFIG_PATH}; chmod 660 ${CONFIG_PATH}")
 }
 fun saveConfig(config: Properties, scope: CoroutineScope, snackbarHostState: SnackbarHostState) {
     config.store(sudo("cat > ${CONFIG_PATH}").outputStream, "")
