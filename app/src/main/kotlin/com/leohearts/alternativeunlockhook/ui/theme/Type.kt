@@ -1,4 +1,4 @@
-package com.leohearts.alternativeUnlockHook.ui.theme
+package com.leohearts.alternativeunlockhook.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle

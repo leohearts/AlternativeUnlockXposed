@@ -1,4 +1,4 @@
-package com.leohearts.alternativeUnlockHook.ui.theme
+package com.leohearts.alternativeunlockhook.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
