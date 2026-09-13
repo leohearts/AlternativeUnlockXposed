@@ -75,11 +75,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             AlternativeUnlockXposedTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background
-                ) {
-                    SettingsBase()
-                }
+                SettingsBase()
             }
             migrateOldConfig()
         }
@@ -181,9 +177,7 @@ fun GroupedWrapper(
     ) {
         Icon(icon, contentDescription = null)
         Spacer(modifier = Modifier.width(16.dp))
-        Column(
-            modifier = if (trailing != null) Modifier.weight(1f) else Modifier,
-        ) {
+        Column(modifier = Modifier.weight(1f)) {
             Text(title)
             if (description.isEmpty()) {
                 Text(
