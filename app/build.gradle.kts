@@ -13,8 +13,8 @@ android {
         applicationId = "com.leohearts.alternativeUnlockHook"
         minSdk = 30
         targetSdk = 37
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 9
+        versionName = "2.0"
     }
 
     buildTypes {
