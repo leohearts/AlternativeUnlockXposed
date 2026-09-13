@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -23,7 +22,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AdminPanelSettings
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Lock
-import androidx.compose.material.icons.rounded.QuestionMark
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Terminal
 import androidx.compose.material.icons.rounded.Visibility
@@ -50,8 +48,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -59,7 +59,6 @@ import androidx.compose.ui.text.font.Typeface
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import com.leohearts.alternativeunlockhook.R
 import com.leohearts.alternativeunlockhook.ui.theme.AlternativeUnlockXposedTheme
 import com.leohearts.alternativeunlockhook.ui.theme.CardPosition
 import com.leohearts.alternativeunlockhook.ui.theme.GroupedListSpacing
@@ -115,7 +114,6 @@ fun migrateOldConfig() {
 
 @Composable
 fun SmallHeading(text: String) {
-    Spacer(modifier = Modifier.height(4.dp))
     Text(
         text,
         modifier = Modifier.padding(horizontal = 16.dp),
@@ -131,7 +129,12 @@ fun Properties.setBooleanProperty(key: String, value: Boolean) {
     setProperty(key, value.toString())
 }
 
-fun saveConfig(context: Context, config: Properties, scope: CoroutineScope, snackbarHostState: SnackbarHostState) {
+fun saveConfig(
+    context: Context,
+    config: Properties,
+    scope: CoroutineScope,
+    snackbarHostState: SnackbarHostState
+) {
     val process = RootShell.sudo("cat > ${HookClass.CONFIG_PATH}")
     if (process != null) {
         config.store(process.outputStream, "")
@@ -162,7 +165,7 @@ fun refreshingSave(
 fun GroupedWrapper(
     modifier: Modifier = Modifier,
     position: CardPosition = CardPosition.Solo,
-    icon: ImageVector,
+    icon: Painter,
     title: String,
     description: String,
     monospace: Boolean = false,
@@ -183,7 +186,10 @@ fun GroupedWrapper(
         ) {
             Text(title)
             if (description.isEmpty()) {
-                Text(stringResource(R.string.value_empty), style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    stringResource(R.string.value_empty),
+                    style = MaterialTheme.typography.bodyMedium
+                )
             } else {
                 Text(
                     description,
@@ -219,7 +225,8 @@ fun SettingsBase(modifier: Modifier = Modifier) {
                 .verticalScroll(rememberScrollState())
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(start = 16.dp, end = 16.dp)
+                .padding(start = 16.dp, end = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(GroupedListSpacing)
         ) {
             var refreshTrigger by remember { mutableIntStateOf(0) }
             val (config, noRoot) = remember(refreshTrigger) {
@@ -250,156 +257,149 @@ fun SettingsBase(modifier: Modifier = Modifier) {
                     config.getBooleanProperty("hideUIPassword")
                 )
             }
-
-            Column(verticalArrangement = Arrangement.spacedBy(GroupedListSpacing)) {
-                SmallHeading(stringResource(R.string.section_password))
-                GroupedWrapper(
-                    title = stringResource(R.string.fake_password),
-                    description = config.getProperty("fakePassword", stringResource(R.string.not_set)),
-                    icon = Icons.Rounded.QuestionMark,
-                    position = CardPosition.Leading,
-                    onClick = {
-                        openDialog.value = true
-                        setTitle.value = context.getString(R.string.fake_password)
-                        setKey.value = "fakePassword"
-                        setHint.value = ""
-                    },
-                    onLongClick = {
-                        config.remove("fakePassword")
-                        refreshingSave(context, config, scope, snackbarHostState) { refreshTrigger++ }
-                    },
-                )
-                GroupedWrapper(
-                    title = stringResource(R.string.real_password),
-                    description = if (hideUIPassword) stringResource(R.string.masked_password) else config.getProperty(
-                        "realPassword", stringResource(R.string.not_set)
-                    ),
-                    icon = Icons.Rounded.Lock,
-                    position = CardPosition.Trailing,
-                    onClick = {
-                        openDialog.value = true
-                        setTitle.value = context.getString(R.string.real_password)
-                        setKey.value = "realPassword"
-                        setHint.value = ""
-                    },
-                    onLongClick = {
-                        config.remove("realPassword")
-                        refreshingSave(context, config, scope, snackbarHostState) { refreshTrigger++ }
-                    },
-                )
-            }
+            SmallHeading(stringResource(R.string.section_password))
+            GroupedWrapper(
+                title = stringResource(R.string.fake_password),
+                description = config.getProperty("fakePassword", stringResource(R.string.not_set)),
+                icon = painterResource(R.drawable.mask_filled),
+                position = CardPosition.Leading,
+                onClick = {
+                    openDialog.value = true
+                    setTitle.value = context.getString(R.string.fake_password)
+                    setKey.value = "fakePassword"
+                    setHint.value = ""
+                },
+                onLongClick = {
+                    config.remove("fakePassword")
+                    refreshingSave(context, config, scope, snackbarHostState) { refreshTrigger++ }
+                },
+            )
+            GroupedWrapper(
+                title = stringResource(R.string.real_password),
+                description = if (hideUIPassword) stringResource(R.string.masked_password) else config.getProperty(
+                    "realPassword", stringResource(R.string.not_set)
+                ),
+                icon = rememberVectorPainter(Icons.Rounded.Lock),
+                position = CardPosition.Trailing,
+                onClick = {
+                    openDialog.value = true
+                    setTitle.value = context.getString(R.string.real_password)
+                    setKey.value = "realPassword"
+                    setHint.value = ""
+                },
+                onLongClick = {
+                    config.remove("realPassword")
+                    refreshingSave(context, config, scope, snackbarHostState) { refreshTrigger++ }
+                },
+            )
 
             SmallHeading(text = stringResource(R.string.section_action))
-            Column(verticalArrangement = Arrangement.spacedBy(GroupedListSpacing)) {
-                GroupedWrapper(
-                    title = stringResource(R.string.action_type_title),
-                    description = config.getProperty("actionType", "sh"),
-                    icon = Icons.Rounded.AdminPanelSettings,
-                    position = CardPosition.Leading,
-                    monospace = true,
-                    onClick = {
-                        openDialog.value = true
-                        setTitle.value = context.getString(R.string.action_type_title)
-                        setKey.value = "actionType"
-                        setHint.value =
-                            context.getString(R.string.action_type_hint)
-                    },
-                    onLongClick = {
-                        config.setProperty("actionType", "sh")
-                        refreshingSave(context, config, scope, snackbarHostState) { refreshTrigger++ }
-                    },
-                )
-                GroupedWrapper(
-                    title = stringResource(R.string.command_title),
-                    description = config.getProperty("actionCommand", "whoami"),
-                    icon = Icons.Rounded.Terminal,
-                    position = CardPosition.Trailing,
-                    monospace = true,
-                    onClick = {
-                        openDialog.value = true
-                        setTitle.value = context.getString(R.string.command_title)
-                        setKey.value = "actionCommand"
-                        setHint.value = context.getString(R.string.command_hint)
-                    },
-                    onLongClick = {
-                        config.setProperty("actionCommand", "whoami")
-                        refreshingSave(context, config, scope, snackbarHostState) { refreshTrigger++ }
-                    },
-                )
-            }
+            GroupedWrapper(
+                title = stringResource(R.string.action_type_title),
+                description = config.getProperty("actionType", "sh"),
+                icon = rememberVectorPainter(Icons.Rounded.AdminPanelSettings),
+                position = CardPosition.Leading,
+                monospace = true,
+                onClick = {
+                    openDialog.value = true
+                    setTitle.value = context.getString(R.string.action_type_title)
+                    setKey.value = "actionType"
+                    setHint.value = context.getString(R.string.action_type_hint)
+                },
+                onLongClick = {
+                    config.remove("actionType")
+                    refreshingSave(context, config, scope, snackbarHostState) { refreshTrigger++ }
+                },
+            )
+            GroupedWrapper(
+                title = stringResource(R.string.command_title),
+                description = config.getProperty("actionCommand", "whoami"),
+                icon = rememberVectorPainter(Icons.Rounded.Terminal),
+                position = CardPosition.Trailing,
+                monospace = true,
+                onClick = {
+                    openDialog.value = true
+                    setTitle.value = context.getString(R.string.command_title)
+                    setKey.value = "actionCommand"
+                    setHint.value = context.getString(R.string.command_hint)
+                },
+                onLongClick = {
+                    config.remove("actionCommand")
+                    refreshingSave(context, config, scope, snackbarHostState) { refreshTrigger++ }
+                },
+            )
 
             SmallHeading(text = stringResource(R.string.section_debug))
-            Column(verticalArrangement = Arrangement.spacedBy(GroupedListSpacing)) {
-                GroupedWrapper(
-                    title = stringResource(R.string.dynamic_load_title),
-                    description = if (!dynamicLoadchecked) stringResource(R.string.dynamic_load_manual) else stringResource(R.string.dynamic_load_always),
-                    icon = Icons.Rounded.Refresh,
-                    position = CardPosition.Leading,
-                    onClick = {
-                        dynamicLoadchecked = !dynamicLoadchecked
-                        config.setBooleanProperty("dynamicLoad", dynamicLoadchecked)
-                        refreshingSave(context, config, scope, snackbarHostState) { refreshTrigger++ }
-                    },
-                    onLongClick = {
-                        dynamicLoadchecked = false
-                        config.setBooleanProperty("dynamicLoad", false)
-                        refreshingSave(context, config, scope, snackbarHostState) { refreshTrigger++ }
-                    },
-                    trailing = {
-                        Switch(
-                            checked = dynamicLoadchecked, onCheckedChange = {
-                                dynamicLoadchecked = it
-                                config.setBooleanProperty("dynamicLoad", it)
-                                refreshingSave(
-                                    context, config, scope, snackbarHostState
-                                ) { refreshTrigger++ }
-                            })
-                    },
-                )
-                GroupedWrapper(
-                    title = stringResource(R.string.restart_systemui_title),
-                    description = stringResource(R.string.restart_command),
-                    icon = Icons.Rounded.Close,
-                    position = CardPosition.Trailing,
-                    monospace = true,
-                    onClick = {
-                        RootShell.sudo("killall com.android.systemui")
-                        scope.launch {
-                            snackbarHostState.showSnackbar(context.getString(R.string.restarting_systemui))
-                        }
-                    },
-                )
-            }
+            GroupedWrapper(
+                title = stringResource(R.string.dynamic_load_title),
+                description = if (!dynamicLoadchecked) stringResource(R.string.dynamic_load_manual) else stringResource(
+                    R.string.dynamic_load_always
+                ),
+                icon = rememberVectorPainter(Icons.Rounded.Refresh),
+                position = CardPosition.Leading,
+                onClick = {
+                    dynamicLoadchecked = !dynamicLoadchecked
+                    config.setBooleanProperty("dynamicLoad", dynamicLoadchecked)
+                    refreshingSave(context, config, scope, snackbarHostState) { refreshTrigger++ }
+                },
+                onLongClick = {
+                    dynamicLoadchecked = false
+                    config.setBooleanProperty("dynamicLoad", false)
+                    refreshingSave(context, config, scope, snackbarHostState) { refreshTrigger++ }
+                },
+                trailing = {
+                    Switch(
+                        checked = dynamicLoadchecked, onCheckedChange = {
+                            dynamicLoadchecked = it
+                            config.setBooleanProperty("dynamicLoad", it)
+                            refreshingSave(
+                                context, config, scope, snackbarHostState
+                            ) { refreshTrigger++ }
+                        })
+                },
+            )
+            GroupedWrapper(
+                title = stringResource(R.string.restart_systemui_title),
+                description = stringResource(R.string.restart_command),
+                icon = rememberVectorPainter(Icons.Rounded.Close),
+                position = CardPosition.Trailing,
+                monospace = true,
+                onClick = {
+                    RootShell.sudo("killall com.android.systemui")
+                    scope.launch {
+                        snackbarHostState.showSnackbar(context.getString(R.string.restarting_systemui))
+                    }
+                },
+            )
 
             SmallHeading(text = stringResource(R.string.section_interface))
-            Column(verticalArrangement = Arrangement.spacedBy(GroupedListSpacing)) {
-                GroupedWrapper(
-                    title = stringResource(R.string.hide_ui_password_title),
-                    description = stringResource(R.string.hide_ui_password_desc),
-                    icon = if (!hideUIPassword) Icons.Rounded.Visibility else Icons.Rounded.VisibilityOff,
-                    position = CardPosition.Solo,
-                    onClick = {
-                        hideUIPassword = !hideUIPassword
-                        config.setBooleanProperty("hideUIPassword", hideUIPassword)
-                        refreshingSave(context, config, scope, snackbarHostState) { refreshTrigger++ }
-                    },
-                    onLongClick = {
-                        hideUIPassword = false
-                        config.setBooleanProperty("hideUIPassword", false)
-                        refreshingSave(context, config, scope, snackbarHostState) { refreshTrigger++ }
-                    },
-                    trailing = {
-                        Switch(
-                            checked = hideUIPassword, onCheckedChange = {
-                                hideUIPassword = it
-                                config.setBooleanProperty("hideUIPassword", it)
-                                refreshingSave(
-                                    context, config, scope, snackbarHostState
-                                ) { refreshTrigger++ }
-                            })
-                    },
-                )
-            }
+            GroupedWrapper(
+                title = stringResource(R.string.hide_ui_password_title),
+                description = stringResource(R.string.hide_ui_password_desc),
+                icon = rememberVectorPainter(if (!hideUIPassword) Icons.Rounded.Visibility else Icons.Rounded.VisibilityOff),
+                position = CardPosition.Solo,
+                onClick = {
+                    hideUIPassword = !hideUIPassword
+                    config.setBooleanProperty("hideUIPassword", hideUIPassword)
+                    refreshingSave(context, config, scope, snackbarHostState) { refreshTrigger++ }
+                },
+                onLongClick = {
+                    hideUIPassword = false
+                    config.setBooleanProperty("hideUIPassword", false)
+                    refreshingSave(context, config, scope, snackbarHostState) { refreshTrigger++ }
+                },
+                trailing = {
+                    Switch(
+                        checked = hideUIPassword, onCheckedChange = {
+                            hideUIPassword = it
+                            config.setBooleanProperty("hideUIPassword", it)
+                            refreshingSave(
+                                context, config, scope, snackbarHostState
+                            ) { refreshTrigger++ }
+                        })
+                },
+            )
+
             if (openDialog.value) {
                 AlertDialog(onDismissRequest = {
                     openDialog.value = false
@@ -429,7 +429,9 @@ fun SettingsBase(modifier: Modifier = Modifier) {
                 }, confirmButton = {
                     TextButton(
                         onClick = {
-                            refreshingSave(context, config, scope, snackbarHostState) { refreshTrigger++ }
+                            refreshingSave(
+                                context, config, scope, snackbarHostState
+                            ) { refreshTrigger++ }
                             openDialog.value = false
                         }) {
                         Text(stringResource(R.string.confirm))
