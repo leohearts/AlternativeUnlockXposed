@@ -21,7 +21,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AdminPanelSettings
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Terminal
 import androidx.compose.material.icons.rounded.Visibility
@@ -273,7 +273,7 @@ fun SettingsBase(modifier: Modifier = Modifier) {
                 description = if (hideUIPassword) stringResource(R.string.masked_password) else config.getProperty(
                     "realPassword", stringResource(R.string.not_set)
                 ),
-                icon = rememberVectorPainter(Icons.Rounded.Lock),
+                icon = rememberVectorPainter(Icons.Rounded.Person),
                 position = CardPosition.Trailing,
                 onClick = {
                     openDialog.value = true
