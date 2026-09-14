@@ -18,6 +18,7 @@ class HookClass : IXposedHookLoadPackage {
     // NOTE: When modifying this, make sure credential sufficiency validation logic is intact.
     companion object {
         const val TAG: String = "alternativeUnlockHook"
+
         // wait if you stored inside `com.android.systemui`, why move to here? for dual-user support? `/data/user/0/` mightve worked
         const val CONFIG_PATH: String = "/data/local/tmp/alternativePass.properties"
     }

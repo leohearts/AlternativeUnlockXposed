@@ -10,11 +10,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -28,17 +26,25 @@ import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedListItem
+import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -58,10 +64,6 @@ import androidx.compose.ui.text.font.Typeface
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import com.leohearts.alternativeunlockhook.ui.theme.AlternativeUnlockXposedTheme
-import com.leohearts.alternativeunlockhook.ui.theme.CardPosition
-import com.leohearts.alternativeunlockhook.ui.theme.GroupedListSpacing
-import com.leohearts.alternativeunlockhook.ui.theme.GroupedRow
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import java.io.BufferedReader
@@ -90,7 +92,6 @@ fun sudoFileExists(path: String): Boolean {
     }
 }
 
-
 fun setPermission() {
     RootShell.sudo("chown `stat /data/data/com.android.systemui/ -c %u`:0 ${HookClass.CONFIG_PATH}; chmod 770 ${HookClass.CONFIG_PATH}")
 }
@@ -117,6 +118,47 @@ fun SmallHeading(text: String) {
     )
 }
 
+class SnackbarQueue {
+    val hostState = SnackbarHostState()
+    private var pending by mutableStateOf<List<String>>(emptyList())
+    fun enqueue(message: String) {
+        pending = pending + message
+    }
+
+    @Composable
+    fun Bind(scope: CoroutineScope) {
+        LaunchedEffect(pending) {
+            val next = pending.firstOrNull() ?: return@LaunchedEffect
+            hostState.currentSnackbarData?.dismiss()
+            scope.launch {
+                hostState.showSnackbar(next)
+                pending = pending.drop(1)
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SwipableHost(hostState: SnackbarHostState) {
+    SnackbarHost(hostState = hostState) { data ->
+        val dismissState = rememberSwipeToDismissBoxState()
+        LaunchedEffect(dismissState.currentValue) {
+            if (dismissState.currentValue != SwipeToDismissBoxValue.Settled) {
+                data.dismiss()
+            }
+        }
+        SwipeToDismissBox(
+            state = dismissState,
+            backgroundContent = { },
+            enableDismissFromStartToEnd = true,
+            enableDismissFromEndToStart = true,
+        ) {
+            Snackbar(snackbarData = data)
+        }
+    }
+}
+
 fun Properties.getBooleanProperty(key: String, defaultValue: Boolean = false): Boolean =
     getProperty(key, defaultValue.toString()).toBoolean()
 
@@ -127,57 +169,49 @@ fun Properties.setBooleanProperty(key: String, value: Boolean) {
 fun saveConfig(
     context: Context,
     config: Properties,
-    scope: CoroutineScope,
-    snackbarHostState: SnackbarHostState
+    enqueueSnackbar: (String) -> Unit,
 ) {
     val process = RootShell.sudo("cat > ${HookClass.CONFIG_PATH}")
     if (process != null) {
         config.store(process.outputStream, "")
         setPermission()
-        scope.launch {
-            snackbarHostState.showSnackbar(context.getString(R.string.saved_to_config))
-        }
+        enqueueSnackbar(context.getString(R.string.saved_to_config))
     } else {
         Log.e(HookClass.TAG, "saveConfig: failed to start su process")
-        scope.launch {
-            snackbarHostState.showSnackbar(context.getString(R.string.save_failed_message))
-        }
+        enqueueSnackbar(context.getString(R.string.save_failed_message))
     }
 }
 
 fun refreshingSave(
-    context: Context,
-    config: Properties,
-    scope: CoroutineScope,
-    snackbarHostState: SnackbarHostState,
-    onSaved: () -> Unit
+    context: Context, config: Properties, enqueueSnackbar: (String) -> Unit, onSaved: () -> Unit
 ) {
-    saveConfig(context, config, scope, snackbarHostState)
+    saveConfig(context, config, enqueueSnackbar)
     onSaved()
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun GroupedWrapper(
+fun SegmentWrapper(
     modifier: Modifier = Modifier,
-    position: CardPosition = CardPosition.Solo,
+    index: Int = 0,
+    count: Int = 1,
     icon: Painter,
     title: String,
     description: String,
     monospace: Boolean = false,
     onClick: (() -> Unit),
     onLongClick: (() -> Unit)? = null,
-    trailing: (@Composable RowScope.() -> Unit)? = null,
+    trailing: (@Composable () -> Unit)? = null,
 ) {
-    GroupedRow(
-        modifier = modifier,
-        position = position,
-        onClick = { onClick() },
+    SegmentedListItem(
+        onClick = onClick,
         onLongClick = onLongClick,
-    ) {
-        Icon(icon, contentDescription = null)
-        Spacer(modifier = Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(title)
+        modifier = modifier.fillMaxWidth(),
+        shapes = ListItemDefaults.segmentedShapes(index, count),
+        colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        leadingContent = { Icon(icon, contentDescription = title) },
+        trailingContent = trailing,
+        supportingContent = {
             if (description.isEmpty()) {
                 Text(
                     stringResource(R.string.value_empty),
@@ -193,20 +227,20 @@ fun GroupedWrapper(
                         FontFamily.Default
                     },
                 )
-
             }
-        }
-        trailing?.invoke(this)
-    }
+        },
+        content = { Text(title) },
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsBase() {
     val context = LocalContext.current
-    val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }, topBar = {
+    val snackbarQueue = remember { SnackbarQueue() }
+    snackbarQueue.Bind(scope)
+    Scaffold(snackbarHost = { SwipableHost(snackbarQueue.hostState) }, topBar = {
         TopAppBar(title = { Text(stringResource(R.string.settings_title)) }, actions = {})
     }) { innerPadding ->
         Column(
@@ -215,7 +249,7 @@ fun SettingsBase() {
                 .fillMaxSize()
                 .padding(innerPadding)
                 .padding(start = 16.dp, end = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(GroupedListSpacing)
+            verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)
         ) {
             var refreshTrigger by remember { mutableIntStateOf(0) }
             val (config, noRoot) = remember(refreshTrigger) {
@@ -227,11 +261,12 @@ fun SettingsBase() {
                 props to (process == null)
             }
             if (noRoot) {
-                GroupedRow(position = CardPosition.Solo) {
-                    Text(stringResource(R.string.no_root_message))
-                }
+                SegmentedListItem(
+                    shapes = ListItemDefaults.segmentedShapes(index = 0, count = 1),
+                    content = { Text(stringResource(R.string.no_root_message)) },
+                    colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                )
             }
-
             val openDialog = remember { mutableStateOf(false) }
             val setTitle = rememberSaveable { mutableStateOf("") }
             val setKey = rememberSaveable { mutableStateOf("") }
@@ -246,95 +281,109 @@ fun SettingsBase() {
                     config.getBooleanProperty("hideUIPassword")
                 )
             }
+
+            val fakePasswordLabel = stringResource(R.string.fake_password)
+            val realPasswordLabel = stringResource(R.string.real_password)
+            val actionTypeTitleLabel = stringResource(R.string.action_type_title)
+            val actionTypeHintLabel = stringResource(R.string.action_type_hint)
+            val commandTitleLabel = stringResource(R.string.command_title)
+            val commandHintLabel = stringResource(R.string.command_hint)
+            val restartingSystemUILabel = stringResource(R.string.restarting_systemui)
+
             SmallHeading(stringResource(R.string.section_password))
-            GroupedWrapper(
+            SegmentWrapper(
                 title = stringResource(R.string.fake_password),
                 description = config.getProperty("fakePassword", stringResource(R.string.not_set)),
                 icon = painterResource(R.drawable.mask_filled),
-                position = CardPosition.Leading,
+                index = 0,
+                count = 2,
                 onClick = {
                     openDialog.value = true
-                    setTitle.value = context.getString(R.string.fake_password)
+                    setTitle.value = fakePasswordLabel
                     setKey.value = "fakePassword"
                     setHint.value = ""
                 },
                 onLongClick = {
                     config.remove("fakePassword")
-                    refreshingSave(context, config, scope, snackbarHostState) { refreshTrigger++ }
+                    refreshingSave(context, config, snackbarQueue::enqueue) { refreshTrigger++ }
                 },
             )
-            GroupedWrapper(
+            SegmentWrapper(
                 title = stringResource(R.string.real_password),
                 description = if (hideUIPassword) stringResource(R.string.masked_password) else config.getProperty(
                     "realPassword", stringResource(R.string.not_set)
                 ),
                 icon = rememberVectorPainter(Icons.Rounded.Person),
-                position = CardPosition.Trailing,
+                index = 1,
+                count = 2,
                 onClick = {
                     openDialog.value = true
-                    setTitle.value = context.getString(R.string.real_password)
+                    setTitle.value = realPasswordLabel
                     setKey.value = "realPassword"
                     setHint.value = ""
                 },
                 onLongClick = {
                     config.remove("realPassword")
-                    refreshingSave(context, config, scope, snackbarHostState) { refreshTrigger++ }
+                    refreshingSave(context, config, snackbarQueue::enqueue) { refreshTrigger++ }
                 },
             )
 
             SmallHeading(text = stringResource(R.string.section_action))
-            GroupedWrapper(
+            SegmentWrapper(
                 title = stringResource(R.string.action_type_title),
                 description = config.getProperty("actionType", "sh"),
                 icon = rememberVectorPainter(Icons.Rounded.AdminPanelSettings),
-                position = CardPosition.Leading,
+                index = 0,
+                count = 2,
                 monospace = true,
                 onClick = {
                     openDialog.value = true
-                    setTitle.value = context.getString(R.string.action_type_title)
+                    setTitle.value = actionTypeTitleLabel
                     setKey.value = "actionType"
-                    setHint.value = context.getString(R.string.action_type_hint)
+                    setHint.value = actionTypeHintLabel
                 },
                 onLongClick = {
                     config.remove("actionType")
-                    refreshingSave(context, config, scope, snackbarHostState) { refreshTrigger++ }
+                    refreshingSave(context, config, snackbarQueue::enqueue) { refreshTrigger++ }
                 },
             )
-            GroupedWrapper(
+            SegmentWrapper(
                 title = stringResource(R.string.command_title),
                 description = config.getProperty("actionCommand", "whoami"),
                 icon = rememberVectorPainter(Icons.Rounded.Terminal),
-                position = CardPosition.Trailing,
+                index = 1,
+                count = 2,
                 monospace = true,
                 onClick = {
                     openDialog.value = true
-                    setTitle.value = context.getString(R.string.command_title)
+                    setTitle.value = commandTitleLabel
                     setKey.value = "actionCommand"
-                    setHint.value = context.getString(R.string.command_hint)
+                    setHint.value = commandHintLabel
                 },
                 onLongClick = {
                     config.remove("actionCommand")
-                    refreshingSave(context, config, scope, snackbarHostState) { refreshTrigger++ }
+                    refreshingSave(context, config, snackbarQueue::enqueue) { refreshTrigger++ }
                 },
             )
 
             SmallHeading(text = stringResource(R.string.section_debug))
-            GroupedWrapper(
+            SegmentWrapper(
                 title = stringResource(R.string.dynamic_load_title),
                 description = if (!dynamicLoadchecked) stringResource(R.string.dynamic_load_manual) else stringResource(
                     R.string.dynamic_load_always
                 ),
                 icon = rememberVectorPainter(Icons.Rounded.Refresh),
-                position = CardPosition.Leading,
+                index = 0,
+                count = 2,
                 onClick = {
                     dynamicLoadchecked = !dynamicLoadchecked
                     config.setBooleanProperty("dynamicLoad", dynamicLoadchecked)
-                    refreshingSave(context, config, scope, snackbarHostState) { refreshTrigger++ }
+                    refreshingSave(context, config, snackbarQueue::enqueue) { refreshTrigger++ }
                 },
                 onLongClick = {
                     dynamicLoadchecked = false
                     config.setBooleanProperty("dynamicLoad", false)
-                    refreshingSave(context, config, scope, snackbarHostState) { refreshTrigger++ }
+                    refreshingSave(context, config, snackbarQueue::enqueue) { refreshTrigger++ }
                 },
                 trailing = {
                     Switch(
@@ -342,40 +391,40 @@ fun SettingsBase() {
                             dynamicLoadchecked = it
                             config.setBooleanProperty("dynamicLoad", it)
                             refreshingSave(
-                                context, config, scope, snackbarHostState
+                                context, config, snackbarQueue::enqueue
                             ) { refreshTrigger++ }
                         })
                 },
             )
-            GroupedWrapper(
+            SegmentWrapper(
                 title = stringResource(R.string.restart_systemui_title),
                 description = stringResource(R.string.restart_command),
                 icon = rememberVectorPainter(Icons.Rounded.Close),
-                position = CardPosition.Trailing,
+                index = 1,
+                count = 2,
                 monospace = true,
                 onClick = {
                     RootShell.sudo("killall com.android.systemui")
-                    scope.launch {
-                        snackbarHostState.showSnackbar(context.getString(R.string.restarting_systemui))
-                    }
+                    snackbarQueue.enqueue(restartingSystemUILabel)
                 },
             )
 
             SmallHeading(text = stringResource(R.string.section_interface))
-            GroupedWrapper(
+            SegmentWrapper(
                 title = stringResource(R.string.hide_ui_password_title),
                 description = stringResource(R.string.hide_ui_password_desc),
                 icon = rememberVectorPainter(if (!hideUIPassword) Icons.Rounded.Visibility else Icons.Rounded.VisibilityOff),
-                position = CardPosition.Solo,
+                index = 0,
+                count = 1,
                 onClick = {
                     hideUIPassword = !hideUIPassword
                     config.setBooleanProperty("hideUIPassword", hideUIPassword)
-                    refreshingSave(context, config, scope, snackbarHostState) { refreshTrigger++ }
+                    refreshingSave(context, config, snackbarQueue::enqueue) { refreshTrigger++ }
                 },
                 onLongClick = {
                     hideUIPassword = false
                     config.setBooleanProperty("hideUIPassword", false)
-                    refreshingSave(context, config, scope, snackbarHostState) { refreshTrigger++ }
+                    refreshingSave(context, config, snackbarQueue::enqueue) { refreshTrigger++ }
                 },
                 trailing = {
                     Switch(
@@ -383,7 +432,7 @@ fun SettingsBase() {
                             hideUIPassword = it
                             config.setBooleanProperty("hideUIPassword", it)
                             refreshingSave(
-                                context, config, scope, snackbarHostState
+                                context, config, snackbarQueue::enqueue
                             ) { refreshTrigger++ }
                         })
                 },
@@ -419,7 +468,7 @@ fun SettingsBase() {
                     TextButton(
                         onClick = {
                             refreshingSave(
-                                context, config, scope, snackbarHostState
+                                context, config, snackbarQueue::enqueue
                             ) { refreshTrigger++ }
                             openDialog.value = false
                         }) {
