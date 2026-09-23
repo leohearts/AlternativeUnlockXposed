@@ -30,6 +30,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,10 +44,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import com.leohearts.alternativeUnlockHook.ui.theme.AlternativeUnlockXposedTheme
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.BufferedReader
+import java.io.IOException
 import java.io.InputStreamReader
 import java.util.Properties
+import java.util.concurrent.TimeUnit
 
 val TAG: String = "alternativeUnlockHook"
 val CONFIG_PATH: String = "/data/local/tmp/alternativePass.properties"
@@ -111,6 +116,25 @@ fun setPermission() {
 //    sudo("chown system:system /data/data/com.android.systemui/alternativePass.properties;setenforce 0;chcon u:object_r:platform_app:s0 /data/data/com.android.systemui/alternativePass.properties;setenforce 1")
     sudo("chown `stat /data/data/com.android.systemui/ -c %u`:0 ${CONFIG_PATH}; chmod 770 ${CONFIG_PATH}")
 }
+// Load the config exactly once per settings screen open. A missing file (first run) yields
+// empty properties, which is fine; a real read failure (su denied, timeout, ...) throws, so
+// callers can refuse to edit and never overwrite the existing file with defaults.
+fun loadConfig(): Result<Properties> {
+    return runCatching {
+        val p = sudo("cat ${CONFIG_PATH}")
+        val content = p.inputStream.readBytes()
+        val err = p.errorStream.readBytes().toString(Charsets.UTF_8)
+        if (!p.waitFor(30, TimeUnit.SECONDS)) {
+            p.destroyForcibly()
+            throw IOException("timed out waiting for su (grant dialog pending?)")
+        }
+        if (p.exitValue() != 0 && !err.contains("No such file")) {
+            throw IOException("su cat failed (exit ${p.exitValue()}): $err")
+        }
+        Properties().apply { load(content.inputStream()) }
+    }
+}
+
 fun saveConfig(config: Properties, scope: CoroutineScope, snackbarHostState: SnackbarHostState) {
     config.store(sudo("cat > ${CONFIG_PATH}").outputStream, "")
     setPermission()
@@ -126,6 +150,12 @@ fun saveConfig(config: Properties, scope: CoroutineScope, snackbarHostState: Sna
 fun SettingsBase( modifier: Modifier = Modifier) {
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    // null = loading; failure = read error. Editing UI only renders on success, so a failed
+    // su call can never be mistaken for an empty config and later overwrite the real file.
+    var configResult by remember { mutableStateOf<Result<Properties>?>(null) }
+    LaunchedEffect(Unit) {
+        configResult = withContext(Dispatchers.IO) { loadConfig() }
+    }
     Scaffold (
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = { TopAppBar(
@@ -134,12 +164,21 @@ fun SettingsBase( modifier: Modifier = Modifier) {
             modifier = modifier.padding(vertical = 10.dp)
         ) }
     ) { innerPadding ->
-        LazyColumn(
-            contentPadding = innerPadding
-        ) {
+        val loaded = configResult
+        if (loaded == null) {
+            Text("Loading config...", modifier = Modifier.padding(innerPadding).padding(16.dp))
+        } else if (loaded.isFailure) {
+            Text(
+                "Failed to load the config file (${loaded.exceptionOrNull()?.message}). Editing is disabled so your existing config will not be overwritten.",
+                modifier = Modifier.padding(innerPadding).padding(16.dp),
+                color = MaterialTheme.colorScheme.error
+            )
+        } else {
+            val config = loaded.getOrThrow()
+            LazyColumn(
+                contentPadding = innerPadding
+            ) {
             item {
-                val config = Properties();
-                config.load(sudo("cat ${CONFIG_PATH}").inputStream)
 
                 val openDialog = remember { mutableStateOf(false) }
                 val setTitle = rememberSaveable { mutableStateOf("") }
@@ -304,7 +343,7 @@ fun SettingsBase( modifier: Modifier = Modifier) {
                     openDialog.value = true
                     setTitle.value = "Command"
                     setKey.value = "actionCommand"
-                    setHint.value = "Command to execute. The entered credential is passed via the AU_INPUT environment variable; exit code 0 unlocks, anything else doesn't.\nExample:\nif [ \"\$AU_INPUT\" = \$(date +%m%H%M) ]; then exit 0; else exit 1; fi"
+                    setHint.value = "Command to execute. With 'PAM style unlock' enabled, the entered credential is passed via the AU_INPUT environment variable; exit code 0 unlocks, anything else doesn't."
                 }) {
                     ListItem(
                         headlineContent = { Text("Command") },
@@ -442,6 +481,10 @@ fun SettingsBase( modifier: Modifier = Modifier) {
                 listDivider()
 
                 if (openDialog.value) {
+                    // keyed by setKey so reopening the dialog for another option starts with that option's value
+                    val value = rememberSaveable(setKey.value) {
+                        mutableStateOf(config.getProperty(setKey.value, ""))
+                    }
                     AlertDialog(
                         onDismissRequest = {
                             // Dismiss the dialog when the user clicks outside the dialog or on the back
@@ -453,21 +496,12 @@ fun SettingsBase( modifier: Modifier = Modifier) {
                             Text(text = setTitle.value)
                         },
                         text = {
-                            val value = rememberSaveable {
-                                mutableStateOf(
-                                    config.getProperty(
-                                        setKey.value,
-                                        ""
-                                    )
-                                )
-                            }
                             LazyColumn {
                                 item {
                                     OutlinedTextField(
                                         label = { Text(setTitle.value) },
                                         value = value.value,
                                         onValueChange = {
-                                            config.setProperty(setKey.value, it)
                                             value.value = it
                                         })
                                     Text(setHint.value)
@@ -477,6 +511,10 @@ fun SettingsBase( modifier: Modifier = Modifier) {
                         confirmButton = {
                             TextButton(
                                 onClick = {
+                                    // empty means unset: remove the key so built-in defaults apply,
+                                    // instead of writing an empty string that would override them
+                                    if (value.value.isEmpty()) config.remove(setKey.value)
+                                    else config.setProperty(setKey.value, value.value)
                                     saveConfig(config, scope, snackbarHostState)
                                     openDialog.value = false
                                 }
@@ -495,6 +533,7 @@ fun SettingsBase( modifier: Modifier = Modifier) {
                         }
                     )
                 }
+            }
             }
         }
     }
