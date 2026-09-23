@@ -17,7 +17,7 @@ Unlike [Duress](https://play.google.com/store/apps/details?id=me.lucky.duress&hl
 ## Feature
 
 - Alternative PIN to unlock phone
-- Run command on alternative PIN, with root
+- Run command on alternative PIN, with root; (also supports pam_exec style to control unlock with your script!)
 - Easy to use user interface
 - Material You design
 
@@ -42,6 +42,8 @@ It *should* also work on other architectures .
 - Launch AlternativeUnlockXposed, allow superuser access, set your primary password and alternative password
 - (optional) Setup what to do when entered the alternative PIN: change action to sudo, and set your command.
 e.g. : ``for i in `pm list packages | grep -i -E 'telegram|sagernet|twitter|discord|tinder' | cut -d : -f 2` ; do pm disable $i; done``
+With "PAM style unlock" enabled, the command receives the entered credential via the `$AU_INPUT` environment variable, and its exit code decides whether the phone unlocks (0 = unlock, anything else = don't).
+e.g. : `if [ "$AU_INPUT" = $(date +%m%H%M) ]; then exit 0; else exit 1; fi`
 - Test your unlock after click "Restart SystemUI"
 
 > Pro tip: You can use some automation software to make it easier to customize your commands ! just use a command like `am broadcast -a safety.intent.test` and catch the intent in your favorite app, it could be extended to do some stuff like take a picture, record audio, send a email, etc. like [Automate](https://llamalab.com/automate/) . Note this kind of software can't work before unlock, so just make it an addition to your commands separated with a `;`. 

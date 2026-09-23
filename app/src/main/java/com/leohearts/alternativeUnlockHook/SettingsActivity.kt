@@ -162,13 +162,37 @@ fun SettingsBase( modifier: Modifier = Modifier) {
                         )
                     )
                 }
+                var useRegex by remember {
+                    mutableStateOf(
+                        config.getProperty(
+                            "useRegex",
+                            "false"
+                        )
+                    )
+                }
+                var skipRealPassword by remember {
+                    mutableStateOf(
+                        config.getProperty(
+                            "skipRealPassword",
+                            "true"
+                        )
+                    )
+                }
+                var pamStyle by remember {
+                    mutableStateOf(
+                        config.getProperty(
+                            "pamStyle",
+                            "false"
+                        )
+                    )
+                }
 
                 smallTitle("Password")
                 Surface(onClick = {
                     openDialog.value = true
                     setTitle.value = "Fake Password"
                     setKey.value = "fakePassword"
-                    setHint.value = ""
+                    setHint.value = "Supports regex when 'Use regex' is enabled. Example: .+ matches any input"
                 }) {
                     ListItem(
                         headlineContent = { Text("Fake Password") },
@@ -177,6 +201,33 @@ fun SettingsBase( modifier: Modifier = Modifier) {
                             Icon(
                                 Icons.Rounded.Face,
                                 contentDescription = "Localized description",
+                            )
+                        }
+                    )
+                }
+
+                Surface(onClick = {
+                    useRegex = if (useRegex == "false") "true" else "false"
+                    config.setProperty("useRegex", useRegex)
+                    saveConfig(config, scope, snackbarHostState)
+                }) {
+                    ListItem(
+                        headlineContent = { Text("Use regex") },
+                        supportingContent = { Text("Match the fake password as a regular expression (full match), so .+ matches any input. Keep off if your fake password contains regex special characters.") },
+                        leadingContent = {
+                            Icon(
+                                Icons.Rounded.Settings,
+                                contentDescription = "Localized description",
+                            )
+                        },
+                        trailingContent = {
+                            Switch(
+                                checked = (useRegex == "true"),
+                                onCheckedChange = {
+                                    useRegex = if (it) "true" else "false"
+                                    config.setProperty("useRegex", useRegex)
+                                    saveConfig(config, scope, snackbarHostState)
+                                }
                             )
                         }
                     )
@@ -195,6 +246,33 @@ fun SettingsBase( modifier: Modifier = Modifier) {
                             Icon(
                                 Icons.Rounded.Lock,
                                 contentDescription = "Localized description",
+                            )
+                        }
+                    )
+                }
+
+                Surface(onClick = {
+                    skipRealPassword = if (skipRealPassword == "false") "true" else "false"
+                    config.setProperty("skipRealPassword", skipRealPassword)
+                    saveConfig(config, scope, snackbarHostState)
+                }) {
+                    ListItem(
+                        headlineContent = { Text("Skip real password") },
+                        supportingContent = { Text("Never run the command when the entered credential equals the real password, so the real password can't leak into AU_INPUT or lock you out. Recommended when the fake password regex matches everything.") },
+                        leadingContent = {
+                            Icon(
+                                Icons.Rounded.Lock,
+                                contentDescription = "Localized description",
+                            )
+                        },
+                        trailingContent = {
+                            Switch(
+                                checked = (skipRealPassword == "true"),
+                                onCheckedChange = {
+                                    skipRealPassword = if (it) "true" else "false"
+                                    config.setProperty("skipRealPassword", skipRealPassword)
+                                    saveConfig(config, scope, snackbarHostState)
+                                }
                             )
                         }
                     )
@@ -226,7 +304,7 @@ fun SettingsBase( modifier: Modifier = Modifier) {
                     openDialog.value = true
                     setTitle.value = "Command"
                     setKey.value = "actionCommand"
-                    setHint.value = "Command to execute."
+                    setHint.value = "Command to execute. The entered credential is passed via the AU_INPUT environment variable; exit code 0 unlocks, anything else doesn't.\nExample:\nif [ \"\$AU_INPUT\" = \$(date +%m%H%M) ]; then exit 0; else exit 1; fi"
                 }) {
                     ListItem(
                         headlineContent = { Text("Command") },
@@ -238,6 +316,53 @@ fun SettingsBase( modifier: Modifier = Modifier) {
                             )
                         }
                     )
+                }
+
+                Surface(onClick = {
+                    pamStyle = if (pamStyle == "false") "true" else "false"
+                    config.setProperty("pamStyle", pamStyle)
+                    saveConfig(config, scope, snackbarHostState)
+                }) {
+                    ListItem(
+                        headlineContent = { Text("PAM style unlock") },
+                        supportingContent = { Text("Pass the entered credential to the command via the AU_INPUT environment variable; exit code 0 unlocks, anything else doesn't. When off, the command runs fire-and-forget like older versions.") },
+                        leadingContent = {
+                            Icon(
+                                Icons.Rounded.Settings,
+                                contentDescription = "Localized description",
+                            )
+                        },
+                        trailingContent = {
+                            Switch(
+                                checked = (pamStyle == "true"),
+                                onCheckedChange = {
+                                    pamStyle = if (it) "true" else "false"
+                                    config.setProperty("pamStyle", pamStyle)
+                                    saveConfig(config, scope, snackbarHostState)
+                                }
+                            )
+                        }
+                    )
+                }
+
+                if (pamStyle == "true") { // only usable in PAM mode
+                    Surface(onClick = {
+                        openDialog.value = true
+                        setTitle.value = "Command timeout"
+                        setKey.value = "commandTimeout"
+                        setHint.value = "Seconds to wait for the command's exit code before giving up (giving up counts as not unlocking). Only used when PAM style unlock is enabled."
+                    }) {
+                        ListItem(
+                            headlineContent = { Text("Command timeout (seconds)") },
+                            supportingContent = { Text(config.getProperty("commandTimeout", "5")) },
+                            leadingContent = {
+                                Icon(
+                                    Icons.Rounded.Settings,
+                                    contentDescription = "Localized description",
+                                )
+                            }
+                        )
+                    }
                 }
 
                 listDivider()

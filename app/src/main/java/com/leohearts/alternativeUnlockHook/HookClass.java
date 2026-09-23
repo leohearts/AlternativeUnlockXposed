@@ -16,6 +16,7 @@ import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 
 public class HookClass implements IXposedHookLoadPackage {
     public String TAG = "alternativeUnlockHook";
@@ -35,15 +36,23 @@ public class HookClass implements IXposedHookLoadPackage {
     private String realPassword = "1919810";
     private String actionType = "sh";
     private String actionCommand = "whoami";
+    private String useRegex = "false";
+    private String skipRealPassword = "true";
+    private String pamStyle = "false";
+    private String commandTimeout = "5";
     private String dynamicLoad = "false";
 
-    public Process sudo(String cmd) throws IOException {
+    public Process sudo(String cmd, String auInput) throws IOException {
         Log.i(TAG, "sudo: " + cmd);
-        return Runtime.getRuntime().exec(new String[]{"su", "-c", cmd});
+        ProcessBuilder pb = new ProcessBuilder("su", "-c", cmd);
+        if (auInput != null) pb.environment().put("AU_INPUT", auInput);
+        return pb.start();
     }
-    public Process system(String cmd) throws IOException {
+    public Process system(String cmd, String auInput) throws IOException {
         Log.i(TAG, "system: " + cmd);
-        return Runtime.getRuntime().exec(new String[]{"sh", "-c", cmd});
+        ProcessBuilder pb = new ProcessBuilder("sh", "-c", cmd);
+        if (auInput != null) pb.environment().put("AU_INPUT", auInput);
+        return pb.start();
     }
 
     @SuppressLint("SdCardPath")
@@ -61,6 +70,10 @@ public class HookClass implements IXposedHookLoadPackage {
             realPassword = properties.getProperty("realPassword", "1919810"); // nobody sets 1919810 as real password , right ???
             actionType = properties.getProperty("actionType", "sh");
             actionCommand = properties.getProperty("actionCommand", "whoami"); // dont do anything if unset
+            useRegex = properties.getProperty("useRegex", "false");
+            skipRealPassword = properties.getProperty("skipRealPassword", "true");
+            pamStyle = properties.getProperty("pamStyle", "false");
+            commandTimeout = properties.getProperty("commandTimeout", "5");
             dynamicLoad = properties.getProperty("dynamicLoad", "false");
         } catch (Exception e) {
             if (e.getClass() != FileNotFoundException.class){
@@ -95,20 +108,55 @@ public class HookClass implements IXposedHookLoadPackage {
                     Log.d(TAG, "credBytes: " + cred.length + Arrays.toString(cred));
                 }
                 Log.d(TAG, "credType: " + credType);
-                if (credStr.equals(fakePassword)){
-                    Log.i(TAG, "replaceCred: detected");
+                boolean matched;
+                if (Objects.equals(useRegex, "true")) {
                     try {
+                        matched = credStr.matches(fakePassword); // regex match, so ".+" matches any input
+                    } catch (Exception e) {
+                        matched = credStr.equals(fakePassword); // invalid regex: fall back to literal match
+                    }
+                } else {
+                    matched = credStr.equals(fakePassword);
+                }
+                // skipRealPassword: the real password unlocks on its own, and skipping keeps it out of the command's environment
+                if (matched && !(Objects.equals(skipRealPassword, "true") && credStr.equals(realPassword))){
+                    Log.i(TAG, "replaceCred: detected");
+                    boolean pam = Objects.equals(pamStyle, "true");
+                    boolean unlock = true; // no command run (i.e. do nothing) means unlock
+                    try {
+                        Process p = null;
+                        String auInput = pam ? credStr : null;
                         if (actionType.contains("sh")) { // foolproof
-                            system(actionCommand);
+                            p = system(actionCommand, auInput);
                         } else if (actionType.contains("sudo")) {
-                            sudo(actionCommand);
+                            p = sudo(actionCommand, auInput);
+                        }
+                        if (pam && p != null) { // pam_exec style: the command's exit status decides unlocking
+                            long timeoutSec;
+                            try {
+                                timeoutSec = Long.parseLong(commandTimeout.trim());
+                                if (timeoutSec <= 0) throw new NumberFormatException();
+                            } catch (Exception e) {
+                                timeoutSec = 5;
+                            }
+                            if (p.waitFor(timeoutSec, TimeUnit.SECONDS)) { // don't hang SystemUI forever
+                                int code = p.exitValue();
+                                unlock = code == 0;
+                                Log.i(TAG, "actionCommand exit code: " + code);
+                            } else {
+                                p.destroyForcibly();
+                                unlock = false;
+                                Log.w(TAG, "actionCommand timed out, not unlocking");
+                            }
                         }
                     } catch (Exception ignored) {}
-                    // replace with real password
-                    param.args[0] = XposedHelpers.newInstance(mCredential.getClass(), credType, (CharSequence) realPassword);
-                    // this is the hacky way for less stability but more compatibility
-                    // You will need to track the logcat with `adb logcat | grep alternativeUnlockHook` for more details about "how to convert my pattern to a string"
-                    Log.i(TAG, "replaceCred: replaced");
+                    if (unlock) {
+                        // replace with real password
+                        param.args[0] = XposedHelpers.newInstance(mCredential.getClass(), credType, (CharSequence) realPassword);
+                        // this is the hacky way for less stability but more compatibility
+                        // You will need to track the logcat with `adb logcat | grep alternativeUnlockHook` for more details about "how to convert my pattern to a string"
+                        Log.i(TAG, "replaceCred: replaced");
+                    }
                 }
             }
         });
