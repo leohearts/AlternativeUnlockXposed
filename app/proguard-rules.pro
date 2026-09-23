@@ -19,3 +19,39 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Xposed
+-adaptresourcefilecontents META-INF/xposed/java_init.list
+-keepattributes RuntimeVisibleAnnotations
+-keep,allowobfuscation,allowoptimization public class * extends io.github.libxposed.api.XposedModule {
+    public <init>(...);
+    public void onModuleLoaded(...);
+    public void onPackageLoaded(...);
+    public void onPackageReady(...);
+    public void onSystemServerStarting(...);
+}
+
+# Entry point
+-keep class com.leohearts.alternativeunlockhook.HookClass {
+    public <init>();
+    public void handleLoadPackage(...);
+}
+
+# Kotlin
+-assumenosideeffects class kotlin.jvm.internal.Intrinsics {
+	public static void check*(...);
+	public static void throw*(...);
+}
+-assumenosideeffects class java.util.Objects {
+    public static ** requireNonNull(...);
+}
+
+# Strip debug log
+-assumenosideeffects class android.util.Log {
+    public static int v(...);
+    public static int d(...);
+}
+
+# Obfuscation
+-repackageclasses
+-allowaccessmodification
