@@ -53,6 +53,9 @@ e.g. : ``for i in `pm list packages | grep -i -E 'telegram|sagernet|twitter|disc
 
 If you are using this software, please consider to give it a star ⭐ on [Github](https://github.com/leohearts/AlternativeUnlockXposed) so we can know how many people are using it, since it doesn't contain any kind of tracking code.
 
+> [!NOTE]
+> You may need to set mount namespace to system global namespace and disable mount namespace isolation in your superuser app (e.g.  Magisk, Apatch) to work on some devices.
+
 ## Download 
 
 <a href='https://github.com/leohearts/AlternativeUnlockXposed/releases'><img width=200px src='https://img.shields.io/github/v/release/leohearts/AlternativeUnlockXposed?logo=github' /></a>
