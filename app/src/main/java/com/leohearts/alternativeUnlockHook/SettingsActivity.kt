@@ -136,11 +136,24 @@ fun loadConfig(): Result<Properties> {
 }
 
 fun saveConfig(config: Properties, scope: CoroutineScope, snackbarHostState: SnackbarHostState) {
-    config.store(sudo("cat > ${CONFIG_PATH}").outputStream, "")
-    setPermission()
     scope.launch {
+        val ok = withContext(Dispatchers.IO) {
+            runCatching {
+                val p = sudo("cat > ${CONFIG_PATH}")
+                config.store(p.outputStream, "")
+                // closing the stream sends EOF so cat finishes the file and exits
+                p.outputStream.close()
+                if (!p.waitFor(30, TimeUnit.SECONDS)) {
+                    p.destroyForcibly()
+                    false
+                } else {
+                    if (p.exitValue() == 0) setPermission()
+                    p.exitValue() == 0
+                }
+            }.getOrDefault(false)
+        }
         snackbarHostState.showSnackbar(
-            "Saved to config file"
+            if (ok) "Saved to config file" else "Failed to save config file"
         )
     }
 }
