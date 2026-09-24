@@ -12,10 +12,8 @@ import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -227,7 +225,7 @@ private fun BashEditorField(
 
     BoxWithConstraints(modifier) {
         val minHeight = maxHeight
-        Column(Modifier.verticalScroll(rememberScrollState())) {
+        Column() {
             Row(
                 Modifier
                     .fillMaxWidth()
