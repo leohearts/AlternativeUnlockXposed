@@ -485,6 +485,22 @@ fun SettingsBase( modifier: Modifier = Modifier) {
                     val value = rememberSaveable(setKey.value) {
                         mutableStateOf(config.getProperty(setKey.value, ""))
                     }
+                    if (setKey.value == "actionCommand") {
+                        CommandEditDialog(
+                            title = setTitle.value,
+                            hint = setHint.value,
+                            initial = value.value,
+                            onConfirm = { newValue ->
+                                // empty means unset: remove the key so built-in defaults apply,
+                                // instead of writing an empty string that would override them
+                                if (newValue.isEmpty()) config.remove(setKey.value)
+                                else config.setProperty(setKey.value, newValue)
+                                saveConfig(config, scope, snackbarHostState)
+                                openDialog.value = false
+                            },
+                            onDismiss = { openDialog.value = false }
+                        )
+                    } else {
                     AlertDialog(
                         onDismissRequest = {
                             // Dismiss the dialog when the user clicks outside the dialog or on the back
@@ -532,6 +548,7 @@ fun SettingsBase( modifier: Modifier = Modifier) {
                             }
                         }
                     )
+                    }
                 }
             }
             }
