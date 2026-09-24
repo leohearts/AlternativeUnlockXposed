@@ -6,6 +6,9 @@ import androidx.compose.foundation.background
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -384,6 +387,7 @@ private fun insertAtCursor(state: TextFieldState, insert: String) {
 // Full-size variant of the standard edit dialog for the action command: same AlertDialog
 // structure (title / content / Confirm / Cancel), content is a bash editor with line
 // numbers, soft wrap and an accessory key row.
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun CommandEditDialog(
     title: String,
@@ -447,7 +451,11 @@ fun CommandEditDialog(
                     accessoryKey("↓") { moveCursorVertically(fieldState, 1); revealCursor() }
                     accessoryKey("Tab") { insertAtCursor(fieldState, TAB); revealCursor() }
                 }
-                Text(hint)
+                // hide the long hint while the IME is up: it would squeeze the editor
+                val imeVisible = WindowInsets.isImeVisible
+                if (!imeVisible) {
+                    Text(hint)
+                }
             }
         },
         confirmButton = {
