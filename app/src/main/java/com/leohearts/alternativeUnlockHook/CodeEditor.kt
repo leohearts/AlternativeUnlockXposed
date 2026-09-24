@@ -1,13 +1,20 @@
 package com.leohearts.alternativeUnlockHook
 
+import android.graphics.Rect
+import android.util.Log
+import android.view.ViewTreeObserver
 import android.view.WindowManager
+import androidx.appcompat.app.AlertDialog
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -18,23 +25,40 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.visible
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.style.FontSizeScope
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.input.OutputTransformation
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.materialIcon
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Face
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -44,11 +68,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.paint
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextMeasurer
@@ -56,14 +83,21 @@ import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import kotlin.text.indexOf
+import kotlin.time.Duration.Companion.milliseconds
 
 // ---- Command editor ----
 // Hand-rolled on BasicTextField on purpose: it keeps the platform IME path, which is the
@@ -222,7 +256,7 @@ fun bashSpans(code: String): List<Triple<Int, Int, BashToken>> {
 @Composable
 private fun BashEditorField(
     state: TextFieldState,
-    scrollState: androidx.compose.foundation.ScrollState,
+    scrollState: ScrollState,
     layout: TextLayoutResult?,
     onLayout: (TextLayoutResult?) -> Unit,
     modifier: Modifier = Modifier
@@ -247,7 +281,7 @@ private fun BashEditorField(
         val editorHeight = maxHeight
         val laneText = "0".repeat((state.text.count { it == '\n' } + 1).toString().length + 1)
         val laneWidth = with(density) { textMeasurer.measure(laneText, style = codeStyle).size.width.toDp() }
-        val lineHeightPx = with(density) { (codeStyle.lineHeight ?: codeStyle.fontSize).toPx() }
+        val lineHeightPx = with(density) { (codeStyle.lineHeight).toPx() }
         Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp)) {
             // gutter lane: line numbers painted from the field's layout, scrolled in sync
             Box(Modifier.width(laneWidth).fillMaxHeight().clipToBounds()) {
@@ -311,7 +345,7 @@ private fun repeatingKey(label: String, onClick: () -> Unit) {
         if (repeating) {
             onClick()
             while (true) {
-                delay(60)
+                delay(60.milliseconds)
                 onClick()
             }
         }
@@ -329,17 +363,23 @@ private fun repeatingKey(label: String, onClick: () -> Unit) {
                 onClick = onClick,
                 onLongClick = { repeating = true }
             )
-            .padding(horizontal = 14.dp, vertical = 10.dp),
-        style = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 16.sp)
+            .padding(horizontal = 0.dp, vertical = 0.dp)
+            .width(44.dp)
+            .wrapContentHeight(align = Alignment.CenterVertically),
+        style = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 16.sp),
+        overflow = TextOverflow.Visible,
+        maxLines = 1,
+        textAlign = TextAlign.Center
     )
 }
 
 // The toolbar is a LazyRow: its scroll cancels item presses, so sliding never fires keys.
 @Composable
 private fun accessoryToolbar(keys: List<Pair<String, () -> Unit>>) {
-    LazyRow(
-        modifier = Modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(horizontal = 4.dp)
+    LazyHorizontalGrid(
+        rows = GridCells.Fixed(2),
+        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp),
+        modifier = Modifier.height(88.dp)
     ) {
         items(keys) { (label, action) -> repeatingKey(label, action) }
     }
@@ -418,6 +458,7 @@ private fun deleteForward(state: TextFieldState) {
 // Full-size variant of the standard edit dialog for the action command: same AlertDialog
 // structure (title / content / Confirm / Cancel), content is a bash editor with line
 // numbers, soft wrap and an accessory key row.
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun CommandEditDialog(
     title: String,
@@ -493,7 +534,32 @@ fun CommandEditDialog(
         onDismissRequest = onDismiss,
         modifier = Modifier.fillMaxSize(),
         properties = DialogProperties(usePlatformDefaultWidth = false),
-        title = { Text(title) },
+        title = {
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(title)
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Icon(
+                            Icons.Rounded.Close,
+                            contentDescription = "Cancel",
+                        )
+                    }
+                    TextButton(onClick = { onConfirm(fieldState.text.toString()) }) {
+                        Icon(
+                            Icons.Rounded.Check,
+                            contentDescription = "Confirm",
+                        )
+                    }
+                }
+            }
+        },
         text = {
             // make the dialog window resize when the IME opens, so the accessory
             // row and the buttons stay above the keyboard instead of being covered
@@ -515,30 +581,38 @@ fun CommandEditDialog(
                 )
                 accessoryToolbar(
                     listOf(
+                        "Home" to { TODO() },
                         "←" to { moveCursorHorizontally(fieldState, -1); revealCursor() },
-                        "→" to { moveCursorHorizontally(fieldState, 1); revealCursor() },
                         "↑" to { moveCursorVertically(fieldState, -1); revealCursor() },
                         "↓" to { moveCursorVertically(fieldState, 1); revealCursor() },
-                        "Tab" to { insertAtCursor(fieldState, TAB) },
-                        "Enter" to { insertAtCursor(fieldState, "\n") },
-                        "Del" to { deleteForward(fieldState) },
+                        "End" to { TODO() },
+                        "→" to { moveCursorHorizontally(fieldState, 1); revealCursor() },
                         "-" to { insertAtCursor(fieldState, "-") },
-                        "|" to { insertAtCursor(fieldState, "|") },
                         "<" to { insertAtCursor(fieldState, "<") },
+                        "_" to { insertAtCursor(fieldState, "_") },
                         ">" to { insertAtCursor(fieldState, ">") },
+                        "|" to { insertAtCursor(fieldState, "|") },
+                        "`" to { insertAtCursor(fieldState, "`") },
                         "Undo" to { undo() },
-                        "Redo" to { redo() }
+                        "Redo" to { redo() },
+                        "Tab" to { insertAtCursor(fieldState, TAB) },
+                        "Del" to { deleteForward(fieldState) },
                     )
                 )
-                
-                Text(hint)
+
+                LazyRow() {
+                    item {
+                        Text(
+                            text = hint,
+                            maxLines = 1
+                        )
+                    }
+                }
             }
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(fieldState.text.toString()) }) { Text("Confirm") }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
         }
     )
 }
