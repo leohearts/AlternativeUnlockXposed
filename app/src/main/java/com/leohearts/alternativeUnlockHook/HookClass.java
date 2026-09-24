@@ -46,12 +46,20 @@ public class HookClass implements IXposedHookLoadPackage {
         Log.i(TAG, "sudo: " + cmd);
         ProcessBuilder pb = new ProcessBuilder("su", "-c", cmd);
         if (auInput != null) pb.environment().put("AU_INPUT", auInput);
+        // never read the output: an undrained pipe fills up (~64KB) and blocks the
+        // command before it can exit, which the PAM waitFor would report as a timeout
+        // Android ProcessBuilder has no Redirect.DISCARD; /dev/null achieves the same
+        pb.redirectOutput(new java.io.File("/dev/null"));
+        pb.redirectError(new java.io.File("/dev/null"));
         return pb.start();
     }
     public Process system(String cmd, String auInput) throws IOException {
         Log.i(TAG, "system: " + cmd);
         ProcessBuilder pb = new ProcessBuilder("sh", "-c", cmd);
         if (auInput != null) pb.environment().put("AU_INPUT", auInput);
+        // Android ProcessBuilder has no Redirect.DISCARD; /dev/null achieves the same
+        pb.redirectOutput(new java.io.File("/dev/null"));
+        pb.redirectError(new java.io.File("/dev/null"));
         return pb.start();
     }
 
