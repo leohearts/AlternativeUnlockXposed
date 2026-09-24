@@ -58,6 +58,20 @@ If you are using this software, please consider to give it a star ⭐ on [Github
 > [!NOTE]
 > You may need to set mount namespace to system global namespace and disable mount namespace isolation in your superuser app (e.g.  Magisk, Apatch) to work on some devices.
 
+
+<details><summary>Here's how to use this module if you use <code>Pattern</code> for screen lock</summary>
+  <p>Here's how to use this module if you use <code>Pattern</code> for screen lock:</p>
+  <ol>
+  <li>Install and enable this module, open app and click 'Restart SystemUI'</li>
+  <li>grab logs with <code>adb logcat | grep alternativeUnlockHook</code> or your favorite log viewer (as <code>Debug</code> level)</li>
+  <li>Unlock with your desired fake pattern</li>
+  <li>Unlock with your real pattern</li>
+  <li>You'll find two different <code>credStr</code> of your unlocks from logcat , fill them into <code>fakePassword</code> and <code>realPassword</code></li>
+  <li>Done! Now click 'Restart SystemUI' .<br>
+  </ol>
+  <img src=https://github.com/user-attachments/assets/10522be3-d7de-4254-ad15-64b497700d38 />
+</details>
+
 ## Download 
 
 <a href='https://github.com/leohearts/AlternativeUnlockXposed/releases'><img width=200px src='https://img.shields.io/github/v/release/leohearts/AlternativeUnlockXposed?logo=github' /></a>
