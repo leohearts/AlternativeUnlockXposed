@@ -418,7 +418,6 @@ private fun deleteForward(state: TextFieldState) {
 // Full-size variant of the standard edit dialog for the action command: same AlertDialog
 // structure (title / content / Confirm / Cancel), content is a bash editor with line
 // numbers, soft wrap and an accessory key row.
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun CommandEditDialog(
     title: String,
