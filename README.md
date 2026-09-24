@@ -69,7 +69,7 @@ If you are using this software, please consider to give it a star ⭐ on [Github
 - [x] Support PIN unlock
 - [x] Run custom command on alternative PIN
 - [x] User interface
-- [ ] Run different commands on multiple fake password
+- [x] Run different commands on multiple fake password (implemented with pam_exec style)
 - [x] Support more lockscreen modes
 - [ ] Zygisk version (?)
 - [ ] Require authentication for settings activity
