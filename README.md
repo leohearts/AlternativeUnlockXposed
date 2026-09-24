@@ -60,7 +60,6 @@ If you are using this software, please consider to give it a star ⭐ on [Github
 
 
 <details><summary>Here's how to use this module if you use <code>Pattern</code> for screen lock</summary>
-  <p>Here's how to use this module if you use <code>Pattern</code> for screen lock:</p>
   <ol>
   <li>Install and enable this module, open app and click 'Restart SystemUI'</li>
   <li>grab logs with <code>adb logcat | grep alternativeUnlockHook</code> or your favorite log viewer (as <code>Debug</code> level)</li>
