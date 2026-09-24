@@ -443,6 +443,20 @@ private fun blockOpener(line: String): Boolean {
     return firstWord in bashControlKeywords || trimmed == lastWord
 }
 
+private fun moveCursorLineStart(state: TextFieldState) {
+    val head = state.selection.end
+    val text = state.text.toString()
+    val lineStart = text.lastIndexOf('\n', head - 1).let { if (it < 0) 0 else it + 1 }
+    state.edit { selection = TextRange(lineStart) }
+}
+
+private fun moveCursorLineEnd(state: TextFieldState) {
+    val head = state.selection.end
+    val text = state.text.toString()
+    val lineEnd = text.indexOf('\n', head).let { if (it < 0) text.length else it }
+    state.edit { selection = TextRange(lineEnd) }
+}
+
 private fun deleteForward(state: TextFieldState) {
     val sel = state.selection
     state.edit {
@@ -581,11 +595,11 @@ fun CommandEditDialog(
                 )
                 accessoryToolbar(
                     listOf(
-                        "Home" to { TODO() },
+                        "Home" to { moveCursorLineStart(fieldState); revealCursor() },
                         "←" to { moveCursorHorizontally(fieldState, -1); revealCursor() },
                         "↑" to { moveCursorVertically(fieldState, -1); revealCursor() },
                         "↓" to { moveCursorVertically(fieldState, 1); revealCursor() },
-                        "End" to { TODO() },
+                        "End" to { moveCursorLineEnd(fieldState); revealCursor() },
                         "→" to { moveCursorHorizontally(fieldState, 1); revealCursor() },
                         "-" to { insertAtCursor(fieldState, "-") },
                         "<" to { insertAtCursor(fieldState, "<") },
