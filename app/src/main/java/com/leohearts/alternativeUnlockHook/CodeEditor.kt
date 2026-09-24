@@ -530,11 +530,8 @@ fun CommandEditDialog(
                         "Redo" to { redo() }
                     )
                 )
-                // hide the long hint while the IME is up: it would squeeze the editor
-                val imeVisible = WindowInsets.isImeVisible
-                if (!imeVisible) {
-                    Text(hint)
-                }
+                
+                Text(hint)
             }
         },
         confirmButton = {
