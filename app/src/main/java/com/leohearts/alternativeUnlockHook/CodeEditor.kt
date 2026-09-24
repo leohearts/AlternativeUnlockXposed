@@ -2,13 +2,19 @@ package com.leohearts.alternativeUnlockHook
 
 import android.view.WindowManager
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.isImeVisible
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -41,7 +47,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.SpanStyle
@@ -58,7 +63,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.delay
 
 // ---- Command editor ----
 // Hand-rolled on BasicTextField on purpose: it keeps the platform IME path, which is the
@@ -238,30 +243,6 @@ private fun BashEditorField(
     val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
 
-    // Auto-indent: when the edit was a single '\n' insertion (the IME Enter key), copy the
-    // current line's leading whitespace onto the new line. Anything else (paste, deletion,
-    // multi-char commit) passes through untouched.
-    LaunchedEffect(Unit) {
-        var prev = state.text.toString()
-        snapshotFlow { state.text.toString() }.collect { newText ->
-            val oldText = prev
-            prev = newText
-            if (newText.length == oldText.length + 1) {
-                val pos = state.selection.start
-                if (pos > 0 && newText.getOrNull(pos - 1) == '\n') {
-                    val lineStart = oldText.lastIndexOf('\n', pos - 2).let { if (it < 0) 0 else it + 1 }
-                    val indent = oldText.substring(lineStart, pos - 1).takeWhile { it == ' ' || it == '\t' }
-                    if (indent.isNotEmpty()) {
-                        state.edit {
-                            replace(pos, pos, indent)
-                            selection = TextRange(pos + indent.length)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
     BoxWithConstraints(modifier) {
         val editorHeight = maxHeight
         val laneText = "0".repeat((state.text.count { it == '\n' } + 1).toString().length + 1)
@@ -312,38 +293,56 @@ private fun BashEditorField(
     }
 }
 
-// Accessory keys. Plain Text + pointerInput instead of Button: buttons take focus,
-// which would dismiss the IME on every press. Holding a key auto-repeats it, like a
-// hardware or IME key would (fire on press, 400ms delay, then every 60ms).
+// Accessory keys built on framework primitives. combinedClickable fires onClick on a
+// tap (the framework cancels it when the gesture turns into a LazyRow scroll, so sliding
+// the toolbar never hits keys), and onLongClick starts a repeat loop; the loop stops when
+// the press interaction is cancelled (release, or the scroll taking the gesture over),
+// tracked via collectIsPressedAsState. Plain Text instead of Button so the keys never
+// take focus away from the editor (which would dismiss the IME).
 @Composable
-private fun accessoryKey(label: String, onClick: () -> Unit) {
-    var pressed by remember { mutableStateOf(false) }
+private fun repeatingKey(label: String, onClick: () -> Unit) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    var repeating by remember { mutableStateOf(false) }
+    LaunchedEffect(isPressed) {
+        if (!isPressed) repeating = false
+    }
+    LaunchedEffect(repeating) {
+        if (repeating) {
+            onClick()
+            while (true) {
+                delay(60)
+                onClick()
+            }
+        }
+    }
     Text(
         label,
         modifier = Modifier
             .background(
-                if (pressed) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent,
+                if (isPressed) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent,
                 RoundedCornerShape(6.dp)
             )
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onPress = {
-                        pressed = true
-                        onClick()
-                        var delay = 400L
-                        while (true) {
-                            val released = withTimeoutOrNull(delay) { tryAwaitRelease() }
-                            if (released != null) break // released or cancelled
-                            onClick()
-                            delay = 60L
-                        }
-                        pressed = false
-                    }
-                )
-            }
+            .combinedClickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick,
+                onLongClick = { repeating = true }
+            )
             .padding(horizontal = 14.dp, vertical = 10.dp),
         style = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 16.sp)
     )
+}
+
+// The toolbar is a LazyRow: its scroll cancels item presses, so sliding never fires keys.
+@Composable
+private fun accessoryToolbar(keys: List<Pair<String, () -> Unit>>) {
+    LazyRow(
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(horizontal = 4.dp)
+    ) {
+        items(keys) { (label, action) -> repeatingKey(label, action) }
+    }
 }
 
 private fun moveCursorHorizontally(state: TextFieldState, dir: Int) {
@@ -384,6 +383,38 @@ private fun insertAtCursor(state: TextFieldState, insert: String) {
     }
 }
 
+// A line opens a block (and the next line should be indented one level deeper) when it
+// ends with a control keyword of a construct (then/do/else/elif/in of if/for/while/until/
+// case) or with an opening brace/paren. The first-word check avoids false positives like
+// `echo do`.
+private val bashControlKeywords = setOf("if", "elif", "for", "while", "until", "case")
+private val bashOpenerAlone = setOf("then", "do", "else", "elif")
+
+private fun blockOpener(line: String): Boolean {
+    val trimmed = line.trimEnd()
+    if (trimmed.isEmpty()) return false
+    val last = trimmed.last()
+    if (last == '{' || last == '(') return true
+    if (!last.isLetter()) return false
+    val wordStart = trimmed.indexOfLast { !it.isLetter() } + 1
+    val lastWord = trimmed.substring(wordStart)
+    if (lastWord !in bashOpenerAlone && lastWord != "in") return false
+    val firstWord = trimmed.trimStart().substringBefore(' ').takeWhile { it.isLetter() }
+    return firstWord in bashControlKeywords || trimmed == lastWord
+}
+
+private fun deleteForward(state: TextFieldState) {
+    val sel = state.selection
+    state.edit {
+        if (sel.collapsed) {
+            val end = (sel.start + 1).coerceAtMost(length)
+            if (end > sel.start) replace(sel.start, end, "")
+        } else {
+            replace(sel.start, sel.end, "")
+        }
+    }
+}
+
 // Full-size variant of the standard edit dialog for the action command: same AlertDialog
 // structure (title / content / Confirm / Cancel), content is a bash editor with line
 // numbers, soft wrap and an accessory key row.
@@ -400,6 +431,45 @@ fun CommandEditDialog(
     val scrollState = rememberScrollState()
     var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
     val scope = rememberCoroutineScope()
+
+    LaunchedEffect(Unit) {
+        var prev = fieldState.text.toString()
+        snapshotFlow { fieldState.text.toString() }.collect { newText ->
+            val oldText = prev
+            prev = newText
+            // auto-indent: when the edit was a single '\n' insertion (IME or toolbar
+            // Enter), copy the current line's leading whitespace onto the new line, plus
+            // one extra level if the line opens a block (if...then, for...do, ...).
+            if (newText.length == oldText.length + 1) {
+                val pos = fieldState.selection.start
+                if (pos > 0 && newText.getOrNull(pos - 1) == '\n') {
+                    val lineStart = oldText.lastIndexOf('\n', pos - 2).let { if (it < 0) 0 else it + 1 }
+                    val line = oldText.substring(lineStart, pos - 1)
+                    val indent = line.takeWhile { it == ' ' || it == '\t' }
+                    val extra = if (blockOpener(line)) TAB else ""
+                    if (indent.isNotEmpty() || extra.isNotEmpty()) {
+                        fieldState.edit {
+                            replace(pos, pos, indent + extra)
+                            selection = TextRange(pos + indent.length + extra.length)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // fieldState.undoState is @ExperimentalFoundationApi in foundation 1.12; it drives the
+    // field's built-in undo history, which also records programmatic edits (auto-indent,
+    // accessory keys), so undo/redo behave like a real editor.
+    @OptIn(ExperimentalFoundationApi::class)
+    fun undo() {
+        fieldState.undoState.undo()
+    }
+
+    @OptIn(ExperimentalFoundationApi::class)
+    fun redo() {
+        fieldState.undoState.redo()
+    }
 
     // reveal the cursor after accessory-key moves (typing and taps are revealed by the
     // field itself); user scrolls never touch the selection, so this cannot fight them
@@ -444,13 +514,23 @@ fun CommandEditDialog(
                         .weight(1f)
                         .fillMaxWidth()
                 )
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    accessoryKey("←") { moveCursorHorizontally(fieldState, -1); revealCursor() }
-                    accessoryKey("→") { moveCursorHorizontally(fieldState, 1); revealCursor() }
-                    accessoryKey("↑") { moveCursorVertically(fieldState, -1); revealCursor() }
-                    accessoryKey("↓") { moveCursorVertically(fieldState, 1); revealCursor() }
-                    accessoryKey("Tab") { insertAtCursor(fieldState, TAB); revealCursor() }
-                }
+                accessoryToolbar(
+                    listOf(
+                        "←" to { moveCursorHorizontally(fieldState, -1); revealCursor() },
+                        "→" to { moveCursorHorizontally(fieldState, 1); revealCursor() },
+                        "↑" to { moveCursorVertically(fieldState, -1); revealCursor() },
+                        "↓" to { moveCursorVertically(fieldState, 1); revealCursor() },
+                        "Tab" to { insertAtCursor(fieldState, TAB) },
+                        "Enter" to { insertAtCursor(fieldState, "\n") },
+                        "Del" to { deleteForward(fieldState) },
+                        "-" to { insertAtCursor(fieldState, "-") },
+                        "|" to { insertAtCursor(fieldState, "|") },
+                        "<" to { insertAtCursor(fieldState, "<") },
+                        ">" to { insertAtCursor(fieldState, ">") },
+                        "Undo" to { undo() },
+                        "Redo" to { redo() }
+                    )
+                )
                 // hide the long hint while the IME is up: it would squeeze the editor
                 val imeVisible = WindowInsets.isImeVisible
                 if (!imeVisible) {
