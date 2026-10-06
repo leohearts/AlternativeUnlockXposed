@@ -21,6 +21,9 @@ import java.util.concurrent.TimeUnit;
 public class HookClass implements IXposedHookLoadPackage {
     public String TAG = "alternativeUnlockHook";
     public String CONFIG_PATH = "/data/local/tmp/alternativePass.properties";
+    public String CONFIG_PATH_FALLBACK = "/data/data/com.android.systemui/alternativePass.properties";
+    public static final String ACTION_CONFIG_FALLBACK_NEEDED = "com.leohearts.alternativeUnlockHook.action.CONFIG_FALLBACK_NEEDED";
+    private static boolean fallbackNotified = false;
 
 
     // NOTE: When modifying this, make sure credential sufficiency validation logic is intact.
@@ -63,6 +66,21 @@ public class HookClass implements IXposedHookLoadPackage {
         return pb.start();
     }
 
+    private void notifyAppConfigFallbackNeeded() {
+        if (fallbackNotified) return;
+        fallbackNotified = true;
+        try {
+            android.content.Context ctx = (android.content.Context) Class.forName("android.app.ActivityThread")
+                    .getMethod("currentApplication").invoke(null);
+            android.content.Intent i = new android.content.Intent(ACTION_CONFIG_FALLBACK_NEEDED);
+            i.setPackage("com.leohearts.alternativeUnlockHook");
+            ctx.sendBroadcast(i);
+            Log.i(TAG, "config unreadable, asked app for compat fallback");
+        } catch (Throwable t) {
+            Log.e(TAG, "notifyAppConfigFallbackNeeded failed", t);
+        }
+    }
+
     @SuppressLint("SdCardPath")
     public void initConfig(){
         try {
@@ -71,7 +89,10 @@ public class HookClass implements IXposedHookLoadPackage {
             try {
                 f = new FileReader(CONFIG_PATH);
             } catch (FileNotFoundException e) {
-                f = new FileReader("/data/data/com.android.systemui/alternativePass.properties");   // make sure module can work if migration process hasn't been started
+                if (e.getMessage() != null && e.getMessage().contains("EACCES")) {
+                    notifyAppConfigFallbackNeeded();
+                }
+                f = new FileReader(CONFIG_PATH_FALLBACK);   // make sure module can work if migration process hasn't been started
             }
             properties.load(f);
             fakePassword = properties.getProperty("fakePassword", "114514");
