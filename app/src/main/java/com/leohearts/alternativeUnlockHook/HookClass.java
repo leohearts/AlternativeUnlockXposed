@@ -7,6 +7,9 @@ import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
 
 import android.annotation.SuppressLint;
+import android.system.ErrnoException;
+import android.system.Os;
+import android.system.OsConstants;
 import android.util.Log;
 
 import java.io.FileNotFoundException;
@@ -85,14 +88,18 @@ public class HookClass implements IXposedHookLoadPackage {
     public void initConfig(){
         try {
             Properties properties = new Properties();
-            FileReader f;
+            FileReader f = null;
             try {
                 f = new FileReader(CONFIG_PATH);
-            } catch (FileNotFoundException e) {
-                if (e.getMessage() != null && e.getMessage().contains("EACCES")) {
+            } catch (Exception e) {
+                try {
+                    f = new FileReader(CONFIG_PATH_FALLBACK);   // make sure module can work if migration process hasn't been started
+                } catch (Exception ignored) {
                     notifyAppConfigFallbackNeeded();
                 }
-                f = new FileReader(CONFIG_PATH_FALLBACK);   // make sure module can work if migration process hasn't been started
+            }
+            if (f == null) {
+                notifyAppConfigFallbackNeeded();
             }
             properties.load(f);
             fakePassword = properties.getProperty("fakePassword", "114514");
@@ -120,8 +127,8 @@ public class HookClass implements IXposedHookLoadPackage {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
                 super.beforeHookedMethod(param);
-                if (Objects.equals(dynamicLoad, "true")){
-                    initConfig();   // load config again for debugging
+                if (fallbackNotified || Objects.equals(dynamicLoad, "true")){
+                    initConfig();   // load config again for debugging or fallback
                 }
                 Log.i(TAG, "beforeHookedMethod: Hooked " + param.method.getName());
                 Object mCredential = param.args[0];
