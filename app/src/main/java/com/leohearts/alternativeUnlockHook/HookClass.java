@@ -20,7 +20,13 @@ import java.util.concurrent.TimeUnit;
 
 public class HookClass implements IXposedHookLoadPackage {
     public String TAG = "alternativeUnlockHook";
+    // /data/local/tmp is the primary path: on AOSP, platform_app is allowed to read
+    // shell_data_file (platform_app.te: allow platform_app shell_data_file { dir search file read }),
+    // and keeping the config out of the SystemUI data dir avoids backing it up to a cloud.
+    // Some vendor ROMs drop that allow rule, so fall back to the SystemUI data dir when the
+    // primary is unreadable.
     public String CONFIG_PATH = "/data/local/tmp/alternativePass.properties";
+    public String FALLBACK_CONFIG_PATH = "/data/data/com.android.systemui/alternativePass.properties";
 
 
     // NOTE: When modifying this, make sure credential sufficiency validation logic is intact.
@@ -71,7 +77,7 @@ public class HookClass implements IXposedHookLoadPackage {
             try {
                 f = new FileReader(CONFIG_PATH);
             } catch (FileNotFoundException e) {
-                f = new FileReader("/data/data/com.android.systemui/alternativePass.properties");   // make sure module can work if migration process hasn't been started
+                f = new FileReader(FALLBACK_CONFIG_PATH);   // vendor ROM where platform_app can't read shell_data_file
             }
             properties.load(f);
             fakePassword = properties.getProperty("fakePassword", "114514");

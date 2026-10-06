@@ -55,6 +55,10 @@ import java.util.concurrent.TimeUnit
 
 val TAG: String = "alternativeUnlockHook"
 val CONFIG_PATH: String = "/data/local/tmp/alternativePass.properties"
+// /data/local/tmp is the primary: on AOSP platform_app can read shell_data_file, and keeping
+// the config out of the SystemUI data dir avoids cloud-syncing it. Vendor ROMs that drop that
+// sepolicy rule need the SystemUI data dir as a fallback, so the save path writes both.
+val FALLBACK_CONFIG_PATH: String = "/data/data/com.android.systemui/alternativePass.properties"
 class SettingsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -85,19 +89,21 @@ fun sudoFileExists(path: String): Boolean {
 }
 
 fun migrateOldConfig() {
-    if (
-        (sudoFileExists("/data/data/com.android.systemui/alternativePass.properties"))
-        and
-        (! sudoFileExists(CONFIG_PATH))
-
-    ) {
-        Log.w(TAG, "migrateOldConfig: migrating from old config file")
-        sudo("mv /data/data/com.android.systemui/alternativePass.properties ${CONFIG_PATH}")
+    if (sudoFileExists(FALLBACK_CONFIG_PATH) && !sudoFileExists(CONFIG_PATH)) {
+        Log.w(TAG, "migrateOldConfig: moving config from SystemUI data dir to /data/local/tmp")
+        // cp, not mv: mv keeps the old inode and its system_app_data_file label, which may be
+        // unreadable depending on ROM. A fresh file in /data/local/tmp is shell_data_file,
+        // which AOSP platform_app can read.
+        sudo("cp ${FALLBACK_CONFIG_PATH} ${CONFIG_PATH} && rm ${FALLBACK_CONFIG_PATH}")
         setPermission()
     }
 }
 
 fun sudo(cmd: String): Process {
+    // Plain su (no KSU-only -M): the module must work with any su implementation such as
+    // native superuser, Magisk, busybox, emulators. /data/local/tmp is written with plain su.
+    // The SystemUI-data-dir mirror can't help when KSU-less setups lack a global mount
+    // namespace for su, but those setups' platform_app can read the primary path anyway.
     return Runtime.getRuntime().exec(listOf<String>("su", "-c", cmd).toTypedArray())
 }
 
@@ -113,26 +119,43 @@ fun listDivider(): Unit {
         .padding(vertical = 24.dp))
 }
 fun setPermission() {
-//    sudo("chown system:system /data/data/com.android.systemui/alternativePass.properties;setenforce 0;chcon u:object_r:platform_app:s0 /data/data/com.android.systemui/alternativePass.properties;setenforce 1")
-    sudo("chown `stat /data/data/com.android.systemui/ -c %u`:0 ${CONFIG_PATH}; chmod 770 ${CONFIG_PATH}")
+    // Primary config lives in /data/local/tmp, which belongs to shell. chmod 644 leaves the
+    // owner alone (chowning it to system would fight the directory's shell ownership) and lets
+    // AOSP platform_app (SystemUI) read it via the shell_data_file allow. The fallback path is
+    // SystemUI's own data dir: 640 system:system keeps it readable by SystemUI (gid 1000).
+    sudo("chmod 644 ${CONFIG_PATH}")
+    sudo("chown system:system ${FALLBACK_CONFIG_PATH}; chmod 640 ${FALLBACK_CONFIG_PATH}")
 }
-// Load the config exactly once per settings screen open. A missing file (first run) yields
-// empty properties, which is fine; a real read failure (su denied, timeout, ...) throws, so
-// callers can refuse to edit and never overwrite the existing file with defaults.
+// Load the config once per settings screen open. The primary is /data/local/tmp; when a vendor
+// ROM removed platform_app's shell_data_file allow the hook reads only the fallback, so fall
+// back when the primary read fails (EACCES or empty). Throw on a real su failure so callers
+// refuse to edit and never overwrite the existing file with defaults.
 fun loadConfig(): Result<Properties> {
     return runCatching {
-        val p = sudo("cat ${CONFIG_PATH}")
-        val content = p.inputStream.readBytes()
-        val err = p.errorStream.readBytes().toString(Charsets.UTF_8)
-        if (!p.waitFor(30, TimeUnit.SECONDS)) {
-            p.destroyForcibly()
-            throw IOException("timed out waiting for su (grant dialog pending?)")
-        }
-        if (p.exitValue() != 0 && !err.contains("No such file")) {
-            throw IOException("su cat failed (exit ${p.exitValue()}): $err")
-        }
-        Properties().apply { load(content.inputStream()) }
+        loadFrom("cat ${CONFIG_PATH}")
+            ?: loadFrom("cat ${FALLBACK_CONFIG_PATH}")
+            ?: Properties()
     }
+}
+
+fun loadFrom(cmd: String): Properties? {
+    val p = sudo(cmd)
+    val content = p.inputStream.readBytes()
+    val err = p.errorStream.readBytes().toString(Charsets.UTF_8)
+    if (!p.waitFor(30, TimeUnit.SECONDS)) {
+        p.destroyForcibly()
+        throw IOException("timed out waiting for su (grant dialog pending?)")
+    }
+    if (p.exitValue() != 0) {
+        // "Permission denied" means the ROM's SystemUI can't read this path; try the other one
+        // instead of treating it as an empty config.
+        if (err.contains("Permission denied")) return null
+        if (!err.contains("No such file")) {
+            throw IOException("su ${cmd} failed (exit ${p.exitValue()}): $err")
+        }
+        return null
+    }
+    return Properties().apply { load(content.inputStream()) }
 }
 
 fun saveConfig(config: Properties, scope: CoroutineScope, snackbarHostState: SnackbarHostState) {
@@ -147,7 +170,10 @@ fun saveConfig(config: Properties, scope: CoroutineScope, snackbarHostState: Sna
                     p.destroyForcibly()
                     false
                 } else {
-                    if (p.exitValue() == 0) setPermission()
+                    if (p.exitValue() == 0) {
+                        setPermission()
+                        mirrorToFallback(config) // best effort; needs su in the global namespace
+                    }
                     p.exitValue() == 0
                 }
             }.getOrDefault(false)
@@ -155,6 +181,20 @@ fun saveConfig(config: Properties, scope: CoroutineScope, snackbarHostState: Sna
         snackbarHostState.showSnackbar(
             if (ok) "Saved to config file" else "Failed to save config file"
         )
+    }
+}
+
+// Mirror the config to the SystemUI data dir so vendor ROMs whose platform_app can't read
+// shell_data_file still work. Only succeeds when su runs in the global mount namespace
+// (e.g. KSU's --mount-master, or Magisk/MagiskSU in global ns); failure here is non-fatal.
+fun mirrorToFallback(config: Properties) {
+    try {
+        val p = sudo("cat > ${FALLBACK_CONFIG_PATH}")
+        config.store(p.outputStream, "")
+        p.outputStream.close()
+        if (p.waitFor(10, TimeUnit.SECONDS) && p.exitValue() == 0) setPermission()
+    } catch (e: Exception) {
+        Log.w(TAG, "mirrorToFallback failed: ${e.message}")
     }
 }
 
