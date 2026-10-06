@@ -77,17 +77,6 @@ If you are using this software, please consider to give it a star ⭐ on [Github
 
 <a href='https://apt.izzysoft.de/fdroid/index/apk/com.leohearts.alternativeUnlockHook'><img width=200px src='https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroidButton.svg' /></a>
 
-
-## Roadmap
-- [x] Support PIN unlock
-- [x] Run custom command on alternative PIN
-- [x] User interface
-- [x] Run different commands on multiple fake password (implemented with pam_exec style)
-- [x] Support more lockscreen modes
-- [ ] Zygisk version (?)
-- [ ] Require authentication for settings activity
-- [ ] Option to hide the app from launcher ~~(I don't need it because I use SmartLauncher)~~
-
 ## Screenshots
 
 <img width=30% src="https://github.com/leohearts/AlternativeUnlockXposed/assets/24632029/dc4e953e-84d3-44d2-90f8-1fabee249f62">
@@ -99,7 +88,25 @@ When the fake password is provided, this module detects the input and replaces i
 
 Furthermore, since the fake password will be replaced with the real one, the fake password can also successfully decrypt the phone after a reboot.
 
-## Credit
+## Roadmap
+- [x] Support PIN unlock
+- [x] Run custom command on alternative PIN
+- [x] User interface
+- [x] Run different commands on multiple fake password (implemented with pam_exec style)
+- [x] Support more lockscreen modes
+- [ ] Zygisk version (?)
+- [ ] Require authentication for settings activity
+- [ ] Option to hide the app from launcher ~~(I don't need it because I use SmartLauncher)~~
+
+## Contributing
+
+This is a **security focused** app, at least for it's usage. So before submitting you pull request, please note:
+
+- Does this introduce any **security** weakness or **privacy** concern ?
+- Is this **compatible** with existing installations, or does it **break** on some devices ? Does this use a feature that only present in some specific software/hardware environments ?
+- We don't accept any **AI usage** for coding or documentation for **first-time contributors** . For existing contributors, please review every line of code and test it against a reasonable amount of devices/AVDs. Please keep the code simple and maintainable :3
+
+## Credits
 
 - [Duress](https://play.google.com/store/apps/details?id=me.lucky.duress&hl=en&gl=US) (for this idea)
 - Google Bard (for app icon)
