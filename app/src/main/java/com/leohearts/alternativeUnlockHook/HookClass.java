@@ -24,9 +24,9 @@ import java.util.concurrent.TimeUnit;
 public class HookClass implements IXposedHookLoadPackage {
     public String TAG = "alternativeUnlockHook";
     public String CONFIG_PATH = "/data/local/tmp/alternativePass.properties";
-    public String CONFIG_PATH_FALLBACK = "/data/data/com.android.systemui/alternativePass.properties";
+    public String CONFIG_PATH_FALLBACK = "/data/data/com.android.systemui/no_backup/alternativePass.properties";
     public static final String ACTION_CONFIG_FALLBACK_NEEDED = "com.leohearts.alternativeUnlockHook.action.CONFIG_FALLBACK_NEEDED";
-    private static boolean fallbackNotified = false;
+    private static int fallbackNotified = 0;
 
 
     // NOTE: When modifying this, make sure credential sufficiency validation logic is intact.
@@ -70,11 +70,13 @@ public class HookClass implements IXposedHookLoadPackage {
     }
 
     private void notifyAppConfigFallbackNeeded() {
-        if (fallbackNotified) return;
-        fallbackNotified = true;
+        if (fallbackNotified >= 2) return;
+        fallbackNotified ++;    // also notify the first time user tries to unlock, in case we started too early that ActivityThread isn't a thing
         try {
-            android.content.Context ctx = (android.content.Context) Class.forName("android.app.ActivityThread")
-                    .getMethod("currentApplication").invoke(null);
+            // currentApplication() is null this early in SystemUI startup; the system
+            // context is created on demand and can sendBroadcast without an Application
+            Object thread = Class.forName("android.app.ActivityThread").getMethod("currentActivityThread").invoke(null);
+            android.content.Context ctx = (android.content.Context) thread.getClass().getMethod("getSystemContext").invoke(thread);
             android.content.Intent i = new android.content.Intent(ACTION_CONFIG_FALLBACK_NEEDED);
             i.setPackage("com.leohearts.alternativeUnlockHook");
             ctx.sendBroadcast(i);
@@ -96,11 +98,16 @@ public class HookClass implements IXposedHookLoadPackage {
                     f = new FileReader(CONFIG_PATH_FALLBACK);   // make sure module can work if migration process hasn't been started
                 } catch (Exception ignored) {
                     notifyAppConfigFallbackNeeded();
+                    if (fallbackNotified >= 2){
+                        Thread.sleep(1000);
+                        Log.i(TAG, "Reloading config with fallback");
+                        // this is the last chance we load config before actually unlocks. must wait until file actually got written.
+                        // we can't wait for it the right way either since we can't easily add callback listeners.
+                        f = new FileReader(CONFIG_PATH_FALLBACK); // read again
+                    }
                 }
             }
-            if (f == null) {
-                notifyAppConfigFallbackNeeded();
-            }
+//            Log.i(TAG, "$CONFIG_PATH_FALLBACK is " + f);
             properties.load(f);
             fakePassword = properties.getProperty("fakePassword", "114514");
             realPassword = properties.getProperty("realPassword", "1919810"); // nobody sets 1919810 as real password , right ???
@@ -112,6 +119,7 @@ public class HookClass implements IXposedHookLoadPackage {
             commandTimeout = properties.getProperty("commandTimeout", "5");
             dynamicLoad = properties.getProperty("dynamicLoad", "false");
         } catch (Exception e) {
+            if (e.getMessage() != null) Log.e(TAG, e.getMessage());
             if (e.getClass() != FileNotFoundException.class){
                 e.printStackTrace();
             }
@@ -127,7 +135,7 @@ public class HookClass implements IXposedHookLoadPackage {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
                 super.beforeHookedMethod(param);
-                if (fallbackNotified || Objects.equals(dynamicLoad, "true")){
+                if (fallbackNotified > 0 || Objects.equals(dynamicLoad, "true")){
                     initConfig();   // load config again for debugging or fallback
                 }
                 Log.i(TAG, "beforeHookedMethod: Hooked " + param.method.getName());
