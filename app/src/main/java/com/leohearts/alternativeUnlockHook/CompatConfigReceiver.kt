@@ -23,10 +23,8 @@ class CompatConfigReceiver : BroadcastReceiver() {
                 if (writeConfig(config)) {
                     syncFallback(true)
                     setPermission(config)
-                    Handler(Looper.getMainLooper()).post {
-                        Toast.makeText(context, "Enabled config fallback for SystemUI (compat mode)", Toast.LENGTH_SHORT).show()
-                        // this should only happen once when SystemUI restarts.
-                    }
+                    Log.i(TAG, "Enabled config fallback for SystemUI (compat mode)")
+                    // this should only happen once when SystemUI restarts.
                 } else {
                     Log.w(TAG, "compat fallback: failed to write config")
                 }
