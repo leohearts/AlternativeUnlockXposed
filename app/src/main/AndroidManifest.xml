@@ -23,6 +23,14 @@
             </intent-filter>
         </activity>
 
+        <receiver
+            android:name=".CompatConfigReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.leohearts.alternativeUnlockHook.action.CONFIG_FALLBACK_NEEDED" />
+            </intent-filter>
+        </receiver>
+
         <meta-data
             android:name="xposedmodule"
             android:value="true" />

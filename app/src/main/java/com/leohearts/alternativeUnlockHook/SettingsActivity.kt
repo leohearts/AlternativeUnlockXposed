@@ -52,14 +52,17 @@ import java.io.IOException
 import java.io.InputStreamReader
 import java.util.Properties
 import java.util.concurrent.TimeUnit
+import kotlin.io.path.Path
 
 val TAG: String = "alternativeUnlockHook"
 val CONFIG_PATH: String = "/data/local/tmp/alternativePass.properties"
+val SYSTEMUI_DATA_DIR: String = "/data/data/com.android.systemui"
+val CONFIG_PATH_FALLBACK: String = "$SYSTEMUI_DATA_DIR/no_backup/alternativePass.properties"
+val ACTION_CONFIG_FALLBACK_NEEDED: String = "com.leohearts.alternativeUnlockHook.action.CONFIG_FALLBACK_NEEDED"
 class SettingsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            Runtime.getRuntime().exec("su -c 'id > /data/local/tmp/qwq'")
             migrateOldConfig()
             AlternativeUnlockXposedTheme {
                 // A surface container using the 'background' color from the theme
@@ -76,7 +79,7 @@ class SettingsActivity : ComponentActivity() {
 
 fun sudoFileExists(path: String): Boolean {
     try {
-        return BufferedReader(InputStreamReader(sudo("cat " + path).inputStream)).readLine()
+        return BufferedReader(InputStreamReader(sudo("cat $path").inputStream)).readLine()
             .chars().count() > 0
     }
     catch (e: Exception) {
@@ -86,14 +89,15 @@ fun sudoFileExists(path: String): Boolean {
 
 fun migrateOldConfig() {
     if (
-        (sudoFileExists("/data/data/com.android.systemui/alternativePass.properties"))
+        (sudoFileExists(CONFIG_PATH_FALLBACK))
         and
         (! sudoFileExists(CONFIG_PATH))
+        // shouldn't affect fallbacks
 
     ) {
         Log.w(TAG, "migrateOldConfig: migrating from old config file")
-        sudo("mv /data/data/com.android.systemui/alternativePass.properties ${CONFIG_PATH}")
-        setPermission()
+        sudo("cat $CONFIG_PATH_FALLBACK > $CONFIG_PATH; rm -f $CONFIG_PATH_FALLBACK")
+        setPermission(Properties())
     }
 }
 
@@ -112,9 +116,18 @@ fun listDivider(): Unit {
         .padding(horizontal = 16.dp)
         .padding(vertical = 24.dp))
 }
-fun setPermission() {
+fun setPermission(config: Properties) {
 //    sudo("chown system:system /data/data/com.android.systemui/alternativePass.properties;setenforce 0;chcon u:object_r:platform_app:s0 /data/data/com.android.systemui/alternativePass.properties;setenforce 1")
     sudo("chown `stat /data/data/com.android.systemui/ -c %u`:0 ${CONFIG_PATH}; chmod 770 ${CONFIG_PATH}")
+    if (config.getProperty("compatMode", "false") == "true") {
+        val CONFIG_PATH_FALLBACK_PDIR = Path(CONFIG_PATH_FALLBACK).parent
+        sudo("chown `stat -c %u $SYSTEMUI_DATA_DIR`:`stat -c %g $SYSTEMUI_DATA_DIR` ${CONFIG_PATH_FALLBACK_PDIR}" +
+                " && chmod 770 ${CONFIG_PATH_FALLBACK_PDIR}" +
+                " && chcon `stat -c %C $SYSTEMUI_DATA_DIR` ${CONFIG_PATH_FALLBACK_PDIR}")
+        sudo("chown `stat -c %u $SYSTEMUI_DATA_DIR`:`stat -c %g $SYSTEMUI_DATA_DIR` $CONFIG_PATH_FALLBACK" +
+            " && chmod 770 $CONFIG_PATH_FALLBACK" +
+            " && chcon `stat -c %C $SYSTEMUI_DATA_DIR` $CONFIG_PATH_FALLBACK")
+    }
 }
 // Load the config exactly once per settings screen open. A missing file (first run) yields
 // empty properties, which is fine; a real read failure (su denied, timeout, ...) throws, so
@@ -135,29 +148,61 @@ fun loadConfig(): Result<Properties> {
     }
 }
 
+fun writeConfig(config: Properties): Boolean {
+    return runCatching {
+        val p = sudo("cat > $CONFIG_PATH")
+        config.store(p.outputStream, "")
+        p.outputStream.close()
+        if (!p.waitFor(30, TimeUnit.SECONDS)) {
+            p.destroyForcibly()
+            false
+        } else {
+            p.exitValue() == 0
+        }
+    }.getOrDefault(false)
+}
+
+// mirror the config into the SystemUI-owned directory when compat mode is on, or remove
+// it when off.
+fun syncFallback(enabled: Boolean): Boolean {
+    val cmd = if (enabled) {
+        "mkdir ${Path(CONFIG_PATH_FALLBACK).parent}; cat $CONFIG_PATH > $CONFIG_PATH_FALLBACK"
+    } else {
+        "rm -f $CONFIG_PATH_FALLBACK"
+    }
+    return runCatching {
+        val p = sudo(cmd)
+        if (!p.waitFor(30, TimeUnit.SECONDS)) {
+            p.destroyForcibly()
+            false
+        } else {
+            p.exitValue() == 0
+        }
+    }.getOrDefault(false)
+}
+
 fun saveConfig(config: Properties, scope: CoroutineScope, snackbarHostState: SnackbarHostState) {
     scope.launch {
-        val ok = withContext(Dispatchers.IO) {
-            runCatching {
-                val p = sudo("cat > ${CONFIG_PATH}")
-                config.store(p.outputStream, "")
-                // closing the stream sends EOF so cat finishes the file and exits
-                p.outputStream.close()
-                if (!p.waitFor(30, TimeUnit.SECONDS)) {
-                    p.destroyForcibly()
-                    false
-                } else {
-                    if (p.exitValue() == 0) setPermission()
-                    p.exitValue() == 0
+        val (writeOk, mirrorOk) = withContext(Dispatchers.IO) {
+            val writeOk = writeConfig(config)
+            var mirrorOk = true
+            if (writeOk) {
+                if (config.getProperty("compatMode", "false") == "true"){
+                    mirrorOk = syncFallback(true)
                 }
-            }.getOrDefault(false)
+                setPermission(config)
+            }
+            Pair(writeOk, mirrorOk)
         }
         snackbarHostState.showSnackbar(
-            if (ok) "Saved to config file" else "Failed to save config file"
+            when {
+                !writeOk -> "Failed to save config file"
+                !mirrorOk -> "Saved, but fallback mirror failed (try superuser mount namespace = Global)"
+                else -> "Saved to config file"
+            }
         )
     }
 }
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsBase( modifier: Modifier = Modifier) {
@@ -234,6 +279,14 @@ fun SettingsBase( modifier: Modifier = Modifier) {
                     mutableStateOf(
                         config.getProperty(
                             "pamStyle",
+                            "false"
+                        )
+                    )
+                }
+                var compatMode by remember {
+                    mutableStateOf(
+                        config.getProperty(
+                            "compatMode",
                             "false"
                         )
                     )
@@ -456,6 +509,34 @@ fun SettingsBase( modifier: Modifier = Modifier) {
                             Icon(
                                 Icons.Rounded.Refresh,
                                 contentDescription = "Localized description",
+                            )
+                        }
+                    )
+                }
+                Surface(onClick = {
+                    compatMode = if (compatMode == "false") "true" else "false"
+                    config.setProperty("compatMode", compatMode)
+                    saveConfig(config, scope, snackbarHostState)
+                    if (compatMode == "false") syncFallback(false)
+                }) {
+                    ListItem(
+                        headlineContent = { Text("Compatibility mode") },
+                        supportingContent = { Text("Mirror the config to SystemUI's private directory for cases where the hook can not read /data/local/tmp. Auto-enabled on hook read failure.") },
+                        leadingContent = {
+                            Icon(
+                                Icons.Rounded.Settings,
+                                contentDescription = "Localized description",
+                            )
+                        },
+                        trailingContent = {
+                            Switch(
+                                checked = (compatMode == "true"),
+                                onCheckedChange = {
+                                    compatMode = if (it) "true" else "false"
+                                    config.setProperty("compatMode", compatMode)
+                                    saveConfig(config, scope, snackbarHostState)
+                                    if (compatMode == "false") syncFallback(false)
+                                }
                             )
                         }
                     )
