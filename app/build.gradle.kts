@@ -11,8 +11,8 @@ android {
         applicationId = "com.leohearts.alternativeUnlockHook"
         minSdk = 30
         targetSdk = 34
-        versionCode = 11
-        versionName = "1.8"
+        versionCode = 12
+        versionName = "1.8.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
