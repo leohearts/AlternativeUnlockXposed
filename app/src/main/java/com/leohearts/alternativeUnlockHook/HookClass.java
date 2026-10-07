@@ -25,6 +25,7 @@ public class HookClass implements IXposedHookLoadPackage {
     public String TAG = "alternativeUnlockHook";
     public String CONFIG_PATH = "/data/local/tmp/alternativePass.properties";
     public String CONFIG_PATH_FALLBACK = "/data/data/com.android.systemui/no_backup/alternativePass.properties";
+    public static final String TARGET_PNAME = "com.leohearts.alternativeUnlockHook";
     public static final String ACTION_CONFIG_FALLBACK_NEEDED = "com.leohearts.alternativeUnlockHook.action.CONFIG_FALLBACK_NEEDED";
     private static int fallbackNotified = 0;
 
@@ -78,7 +79,7 @@ public class HookClass implements IXposedHookLoadPackage {
             Object thread = Class.forName("android.app.ActivityThread").getMethod("currentActivityThread").invoke(null);
             android.content.Context ctx = (android.content.Context) thread.getClass().getMethod("getSystemContext").invoke(thread);
             android.content.Intent i = new android.content.Intent(ACTION_CONFIG_FALLBACK_NEEDED);
-            i.setPackage("com.leohearts.alternativeUnlockHook");
+            i.setPackage(TARGET_PNAME);
             ctx.sendBroadcast(i);
             Log.i(TAG, "config unreadable, asked app for compat fallback");
         } catch (Throwable t) {
@@ -128,7 +129,10 @@ public class HookClass implements IXposedHookLoadPackage {
 
     @Override
     public void handleLoadPackage(XC_LoadPackage.LoadPackageParam lpparam) throws Throwable {
-        Log.i(TAG, "handleLoadPackage: Loaded app");
+        Log.i(TAG, "handleLoadPackage: Loaded app " + lpparam.packageName);
+        if (lpparam.packageName.equals(TARGET_PNAME)){
+            return; // don't trigger initConfig() on itself
+        }
         initConfig();
         Class<?> LockPatternUtils = XposedHelpers.findClass("com.android.internal.widget.LockPatternUtils", lpparam.classLoader);
         XposedBridge.hookAllMethods(LockPatternUtils, "checkCredential", new XC_MethodHook() {
