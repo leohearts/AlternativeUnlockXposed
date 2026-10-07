@@ -56,7 +56,7 @@ import kotlin.io.path.Path
 
 val TAG: String = "alternativeUnlockHook"
 val CONFIG_PATH: String = "/data/local/tmp/alternativePass.properties"
-val SYSTEMUI_DATA_DIR: String = "/data/data/com.android.systemui"
+val SYSTEMUI_DATA_DIR: String = "/data/user_de/0/com.android.systemui"
 val CONFIG_PATH_FALLBACK: String = "$SYSTEMUI_DATA_DIR/no_backup/alternativePass.properties"
 val ACTION_CONFIG_FALLBACK_NEEDED: String = "com.leohearts.alternativeUnlockHook.action.CONFIG_FALLBACK_NEEDED"
 class SettingsActivity : ComponentActivity() {
@@ -118,15 +118,17 @@ fun listDivider(): Unit {
 }
 fun setPermission(config: Properties) {
 //    sudo("chown system:system /data/data/com.android.systemui/alternativePass.properties;setenforce 0;chcon u:object_r:platform_app:s0 /data/data/com.android.systemui/alternativePass.properties;setenforce 1")
-    sudo("chown `stat /data/data/com.android.systemui/ -c %u`:0 ${CONFIG_PATH}; chmod 770 ${CONFIG_PATH}")
+    sudo("chown `stat $SYSTEMUI_DATA_DIR/ -c %u`:0 ${CONFIG_PATH}; chmod 770 ${CONFIG_PATH}")
     if (config.getProperty("compatMode", "false") == "true") {
         val CONFIG_PATH_FALLBACK_PDIR = Path(CONFIG_PATH_FALLBACK).parent
-        sudo("chown `stat -c %u $SYSTEMUI_DATA_DIR`:`stat -c %g $SYSTEMUI_DATA_DIR` ${CONFIG_PATH_FALLBACK_PDIR}" +
-                " && chmod 770 ${CONFIG_PATH_FALLBACK_PDIR}" +
-                " && chcon `stat -c %C $SYSTEMUI_DATA_DIR` ${CONFIG_PATH_FALLBACK_PDIR}")
-        sudo("chown `stat -c %u $SYSTEMUI_DATA_DIR`:`stat -c %g $SYSTEMUI_DATA_DIR` $CONFIG_PATH_FALLBACK" +
-            " && chmod 770 $CONFIG_PATH_FALLBACK" +
-            " && chcon `stat -c %C $SYSTEMUI_DATA_DIR` $CONFIG_PATH_FALLBACK")
+        sudo("chown `stat -c %u $SYSTEMUI_DATA_DIR`:`stat -c %g $SYSTEMUI_DATA_DIR` ${CONFIG_PATH_FALLBACK_PDIR} ;" +
+                "chmod 770 ${CONFIG_PATH_FALLBACK_PDIR} ;" +
+                "chcon `stat -c %C $SYSTEMUI_DATA_DIR` ${CONFIG_PATH_FALLBACK_PDIR} ;" +
+                "restorecon -F ${CONFIG_PATH_FALLBACK_PDIR} ;")
+        sudo("chown `stat -c %u $SYSTEMUI_DATA_DIR`:`stat -c %g $SYSTEMUI_DATA_DIR` $CONFIG_PATH_FALLBACK ;" +
+                "chmod 770 $CONFIG_PATH_FALLBACK ;" +
+                "chcon `stat -c %C $SYSTEMUI_DATA_DIR` $CONFIG_PATH_FALLBACK ;" +
+                "restorecon -F $CONFIG_PATH_FALLBACK; ")
     }
 }
 // Load the config exactly once per settings screen open. A missing file (first run) yields

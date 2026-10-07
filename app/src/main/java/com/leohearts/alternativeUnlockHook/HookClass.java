@@ -24,7 +24,7 @@ import java.util.concurrent.TimeUnit;
 public class HookClass implements IXposedHookLoadPackage {
     public String TAG = "alternativeUnlockHook";
     public String CONFIG_PATH = "/data/local/tmp/alternativePass.properties";
-    public String CONFIG_PATH_FALLBACK = "/data/data/com.android.systemui/no_backup/alternativePass.properties";
+    public String CONFIG_PATH_FALLBACK = "/data/user_de/0/com.android.systemui/no_backup/alternativePass.properties";
     public static final String TARGET_PNAME = "com.leohearts.alternativeUnlockHook";
     public static final String ACTION_CONFIG_FALLBACK_NEEDED = "com.leohearts.alternativeUnlockHook.action.CONFIG_FALLBACK_NEEDED";
     private static int fallbackNotified = 0;
