@@ -24,6 +24,7 @@ Unlike [Duress](https://play.google.com/store/apps/details?id=me.lucky.duress&hl
 
 Currently tested on:
 - Android 15 (arm64, LOS 22.1)
+- HyperOS 3.0.8.0
 - Android 14 (arm64)
 - Android 13 (x86_64)
 - Android 12 (x64_64)
