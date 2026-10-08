@@ -1,7 +1,6 @@
 package com.leohearts.alternativeUnlockHook
 
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
@@ -47,23 +46,13 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.BufferedReader
-import java.io.IOException
-import java.io.InputStreamReader
 import java.util.Properties
-import java.util.concurrent.TimeUnit
-import kotlin.io.path.Path
 
 val TAG: String = "alternativeUnlockHook"
-val CONFIG_PATH: String = "/data/local/tmp/alternativePass.properties"
-val SYSTEMUI_DATA_DIR: String = "/data/user_de/0/com.android.systemui"
-val CONFIG_PATH_FALLBACK: String = "$SYSTEMUI_DATA_DIR/no_backup/alternativePass.properties"
-val ACTION_CONFIG_FALLBACK_NEEDED: String = "com.leohearts.alternativeUnlockHook.action.CONFIG_FALLBACK_NEEDED"
 class SettingsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            migrateOldConfig()
             AlternativeUnlockXposedTheme {
                 // A surface container using the 'background' color from the theme
                 Surface(
@@ -74,30 +63,6 @@ class SettingsActivity : ComponentActivity() {
                 }
             }
         }
-    }
-}
-
-fun sudoFileExists(path: String): Boolean {
-    try {
-        return BufferedReader(InputStreamReader(sudo("cat $path").inputStream)).readLine()
-            .chars().count() > 0
-    }
-    catch (e: Exception) {
-        return false;
-    }
-}
-
-fun migrateOldConfig() {
-    if (
-        (sudoFileExists(CONFIG_PATH_FALLBACK))
-        and
-        (! sudoFileExists(CONFIG_PATH))
-        // shouldn't affect fallbacks
-
-    ) {
-        Log.w(TAG, "migrateOldConfig: migrating from old config file")
-        sudo("cat $CONFIG_PATH_FALLBACK > $CONFIG_PATH; rm -f $CONFIG_PATH_FALLBACK")
-        setPermission(Properties())
     }
 }
 
@@ -116,92 +81,20 @@ fun listDivider(): Unit {
         .padding(horizontal = 16.dp)
         .padding(vertical = 24.dp))
 }
-fun setPermission(config: Properties) {
-//    sudo("chown system:system /data/data/com.android.systemui/alternativePass.properties;setenforce 0;chcon u:object_r:platform_app:s0 /data/data/com.android.systemui/alternativePass.properties;setenforce 1")
-    sudo("chown `stat $SYSTEMUI_DATA_DIR/ -c %u`:0 ${CONFIG_PATH}; chmod 770 ${CONFIG_PATH}")
-    if (config.getProperty("compatMode", "false") == "true") {
-        val CONFIG_PATH_FALLBACK_PDIR = Path(CONFIG_PATH_FALLBACK).parent
-        sudo("chown `stat -c %u $SYSTEMUI_DATA_DIR`:`stat -c %g $SYSTEMUI_DATA_DIR` ${CONFIG_PATH_FALLBACK_PDIR} ;" +
-                "chmod 770 ${CONFIG_PATH_FALLBACK_PDIR} ;" +
-                "chcon `stat -c %C $SYSTEMUI_DATA_DIR` ${CONFIG_PATH_FALLBACK_PDIR} ;" +
-                "restorecon -F ${CONFIG_PATH_FALLBACK_PDIR} ;")
-        sudo("chown `stat -c %u $SYSTEMUI_DATA_DIR`:`stat -c %g $SYSTEMUI_DATA_DIR` $CONFIG_PATH_FALLBACK ;" +
-                "chmod 770 $CONFIG_PATH_FALLBACK ;" +
-                "chcon `stat -c %C $SYSTEMUI_DATA_DIR` $CONFIG_PATH_FALLBACK ;" +
-                "restorecon -F $CONFIG_PATH_FALLBACK; ")
-    }
-}
-// Load the config exactly once per settings screen open. A missing file (first run) yields
-// empty properties, which is fine; a real read failure (su denied, timeout, ...) throws, so
-// callers can refuse to edit and never overwrite the existing file with defaults.
 fun loadConfig(): Result<Properties> {
-    return runCatching {
-        val p = sudo("cat ${CONFIG_PATH}")
-        val content = p.inputStream.readBytes()
-        val err = p.errorStream.readBytes().toString(Charsets.UTF_8)
-        if (!p.waitFor(30, TimeUnit.SECONDS)) {
-            p.destroyForcibly()
-            throw IOException("timed out waiting for su (grant dialog pending?)")
-        }
-        if (p.exitValue() != 0 && !err.contains("No such file")) {
-            throw IOException("su cat failed (exit ${p.exitValue()}): $err")
-        }
-        Properties().apply { load(content.inputStream()) }
-    }
+    return runCatching { AlternativeUnlockApplication.instance.loadConfig() }
 }
 
 fun writeConfig(config: Properties): Boolean {
-    return runCatching {
-        val p = sudo("cat > $CONFIG_PATH")
-        config.store(p.outputStream, "")
-        p.outputStream.close()
-        if (!p.waitFor(30, TimeUnit.SECONDS)) {
-            p.destroyForcibly()
-            false
-        } else {
-            p.exitValue() == 0
-        }
-    }.getOrDefault(false)
-}
-
-// mirror the config into the SystemUI-owned directory when compat mode is on, or remove
-// it when off.
-fun syncFallback(enabled: Boolean): Boolean {
-    val cmd = if (enabled) {
-        "mkdir ${Path(CONFIG_PATH_FALLBACK).parent}; cat $CONFIG_PATH > $CONFIG_PATH_FALLBACK"
-    } else {
-        "rm -f $CONFIG_PATH_FALLBACK"
-    }
-    return runCatching {
-        val p = sudo(cmd)
-        if (!p.waitFor(30, TimeUnit.SECONDS)) {
-            p.destroyForcibly()
-            false
-        } else {
-            p.exitValue() == 0
-        }
-    }.getOrDefault(false)
+    return runCatching { AlternativeUnlockApplication.instance.saveConfig(config) }
+        .getOrDefault(false)
 }
 
 fun saveConfig(config: Properties, scope: CoroutineScope, snackbarHostState: SnackbarHostState) {
     scope.launch {
-        val (writeOk, mirrorOk) = withContext(Dispatchers.IO) {
-            val writeOk = writeConfig(config)
-            var mirrorOk = true
-            if (writeOk) {
-                if (config.getProperty("compatMode", "false") == "true"){
-                    mirrorOk = syncFallback(true)
-                }
-                setPermission(config)
-            }
-            Pair(writeOk, mirrorOk)
-        }
+        val writeOk = withContext(Dispatchers.IO) { writeConfig(config) }
         snackbarHostState.showSnackbar(
-            when {
-                !writeOk -> "Failed to save config file"
-                !mirrorOk -> "Saved, but fallback mirror failed (try superuser mount namespace = Global)"
-                else -> "Saved to config file"
-            }
+            if (writeOk) "Saved to Xposed preferences" else "Failed to save settings"
         )
     }
 }
@@ -210,8 +103,8 @@ fun saveConfig(config: Properties, scope: CoroutineScope, snackbarHostState: Sna
 fun SettingsBase( modifier: Modifier = Modifier) {
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    // null = loading; failure = read error. Editing UI only renders on success, so a failed
-    // su call can never be mistaken for an empty config and later overwrite the real file.
+    // null = loading; failure = read/migration error. Editing only renders on success, so a
+    // failed legacy import cannot be mistaken for an empty config and overwrite the settings.
     var configResult by remember { mutableStateOf<Result<Properties>?>(null) }
     LaunchedEffect(Unit) {
         configResult = withContext(Dispatchers.IO) { loadConfig() }
@@ -229,7 +122,7 @@ fun SettingsBase( modifier: Modifier = Modifier) {
             Text("Loading config...", modifier = Modifier.padding(innerPadding).padding(16.dp))
         } else if (loaded.isFailure) {
             Text(
-                "Failed to load the config file (${loaded.exceptionOrNull()?.message}). Editing is disabled so your existing config will not be overwritten.",
+                "Failed to load settings (${loaded.exceptionOrNull()?.message}). Editing is disabled so your existing configuration will not be overwritten.",
                 modifier = Modifier.padding(innerPadding).padding(16.dp),
                 color = MaterialTheme.colorScheme.error
             )
@@ -245,14 +138,6 @@ fun SettingsBase( modifier: Modifier = Modifier) {
                 val setKey = rememberSaveable { mutableStateOf("") }
                 val setHint = rememberSaveable { mutableStateOf("") }
 
-                var dynamicLoadchecked by remember {
-                    mutableStateOf(
-                        config.getProperty(
-                            "dynamicLoad",
-                            "false"
-                        )
-                    )
-                }
                 var hideUIPassword by remember {
                     mutableStateOf(
                         config.getProperty(
@@ -285,15 +170,6 @@ fun SettingsBase( modifier: Modifier = Modifier) {
                         )
                     )
                 }
-                var compatMode by remember {
-                    mutableStateOf(
-                        config.getProperty(
-                            "compatMode",
-                            "false"
-                        )
-                    )
-                }
-
                 smallTitle("Password")
                 Surface(onClick = {
                     openDialog.value = true
@@ -473,72 +349,17 @@ fun SettingsBase( modifier: Modifier = Modifier) {
                 }
 
                 listDivider()
-                smallTitle(text = "Debugging")
-
-                Surface(onClick = {
-                    dynamicLoadchecked = if (dynamicLoadchecked == "false") "true" else "false"
-                    config.setProperty("dynamicLoad", dynamicLoadchecked)
-                    saveConfig(config, scope, snackbarHostState)
-                }) {
-                    ListItem(
-                        headlineContent = { Text("Dynamic config load") },
-                        supportingContent = { Text("Load config every time your phone unlocks. Otherwise, you'll need to restart SystemUI to apply changes.") },
-                        leadingContent = {
-                            Icon(
-                                Icons.Rounded.Settings,
-                                contentDescription = "Localized description",
-                            )
-                        },
-                        trailingContent = {
-                            Switch(
-                                checked = (dynamicLoadchecked == "true"),
-                                onCheckedChange = {
-                                    dynamicLoadchecked = if (it) "true" else "false"
-                                    config.setProperty("dynamicLoad", dynamicLoadchecked)
-                                    saveConfig(config, scope, snackbarHostState)
-                                }
-                            )
-                        }
-                    )
-                }
+                smallTitle(text = "Module")
                 Surface(onClick = {
                     sudo("killall com.android.systemui")
                 }) {
                     ListItem(
                         headlineContent = { Text("Restart SystemUI") },
-                        supportingContent = { Text("Run killall com.android.systemui") },
+                        supportingContent = { Text("Settings normally update immediately. Restart after installing or updating the module.") },
                         leadingContent = {
                             Icon(
                                 Icons.Rounded.Refresh,
                                 contentDescription = "Localized description",
-                            )
-                        }
-                    )
-                }
-                Surface(onClick = {
-                    compatMode = if (compatMode == "false") "true" else "false"
-                    config.setProperty("compatMode", compatMode)
-                    saveConfig(config, scope, snackbarHostState)
-                    if (compatMode == "false") syncFallback(false)
-                }) {
-                    ListItem(
-                        headlineContent = { Text("Compatibility mode") },
-                        supportingContent = { Text("Mirror the config to SystemUI's private directory for cases where the hook can not read /data/local/tmp. Auto-enabled on hook read failure.") },
-                        leadingContent = {
-                            Icon(
-                                Icons.Rounded.Settings,
-                                contentDescription = "Localized description",
-                            )
-                        },
-                        trailingContent = {
-                            Switch(
-                                checked = (compatMode == "true"),
-                                onCheckedChange = {
-                                    compatMode = if (it) "true" else "false"
-                                    config.setProperty("compatMode", compatMode)
-                                    saveConfig(config, scope, snackbarHostState)
-                                    if (compatMode == "false") syncFallback(false)
-                                }
                             )
                         }
                     )

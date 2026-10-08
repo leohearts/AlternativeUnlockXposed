@@ -19,3 +19,7 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+-keep class com.leohearts.alternativeUnlockHook.HookClass { *; }
+-adaptresourcefilecontents META-INF/xposed/java_init.list
+-keep,allowobfuscation,allowoptimization public class * extends io.github.libxposed.api.XposedModule {
