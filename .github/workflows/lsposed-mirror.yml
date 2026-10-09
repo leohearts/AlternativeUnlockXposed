@@ -1,0 +1,53 @@
+name: Mirror release to LSPosed module repository
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to mirror
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve the release tag
+        id: release
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+          EVENT_TAG: ${{ github.event.release.tag_name }}
+        run: echo "tag=${INPUT_TAG:-$EVENT_TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Download the APK from the upstream release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern '*.apk' --dir dist
+          ls dist/*.apk
+
+      - name: Create the release in the module repository
+        env:
+          GH_TOKEN: ${{ secrets.XPOSED_REPO_TOKEN }}
+          MODULE_REPO: Xposed-Modules-Repo/com.leohearts.alternativeUnlockHook
+          TAG: ${{ steps.release.outputs.tag }}
+          TITLE: ${{ github.event.release.name }}
+          BODY: ${{ github.event.release.body }}
+          PRERELEASE: ${{ github.event.release.prerelease }}
+        run: |
+          # XposedBot renames the release tag to "<versionCode>-<versionName>", so match either form.
+          if gh release list --repo "$MODULE_REPO" --limit 100 --json tagName --jq '.[].tagName' \
+            | sed 's/^[0-9]*-//' | grep -qxF "$TAG"; then
+            echo "$TAG is already published in $MODULE_REPO"
+            exit 0
+          fi
+          gh release create "$TAG" dist/*.apk \
+            --repo "$MODULE_REPO" \
+            --title "${TITLE:-$TAG}" \
+            --notes "${BODY:-Mirrored from https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG}" \
+            --prerelease="${PRERELEASE:-false}"
