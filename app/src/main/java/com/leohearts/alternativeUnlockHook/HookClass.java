@@ -1,212 +1,229 @@
 package com.leohearts.alternativeUnlockHook;
 
-import de.robv.android.xposed.IXposedHookLoadPackage;
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
-import de.robv.android.xposed.XposedHelpers;
-import de.robv.android.xposed.callbacks.XC_LoadPackage;
-
-import android.annotation.SuppressLint;
-import android.system.ErrnoException;
-import android.system.Os;
-import android.system.OsConstants;
+import android.content.SharedPreferences;
 import android.util.Log;
 
-import java.io.FileNotFoundException;
-import java.io.FileReader;
+import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-import java.util.Objects;
-import java.util.Properties;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-public class HookClass implements IXposedHookLoadPackage {
-    public String TAG = "alternativeUnlockHook";
-    public String CONFIG_PATH = "/data/local/tmp/alternativePass.properties";
-    public String CONFIG_PATH_FALLBACK = "/data/user_de/0/com.android.systemui/no_backup/alternativePass.properties";
-    public static final String TARGET_PNAME = "com.leohearts.alternativeUnlockHook";
-    public static final String ACTION_CONFIG_FALLBACK_NEEDED = "com.leohearts.alternativeUnlockHook.action.CONFIG_FALLBACK_NEEDED";
-    private static int fallbackNotified = 0;
+import io.github.libxposed.api.XposedInterface;
+import io.github.libxposed.api.XposedModule;
+import io.github.libxposed.api.XposedModuleInterface.ModuleLoadedParam;
+import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam;
 
+public final class HookClass extends XposedModule {
+    private static final String TAG = "alternativeUnlockHook";
+    private static final String SYSTEMUI_PNAME = "com.android.systemui";
+    private static final String PREFS_NAME = "alternative_unlock";
+    private static final String LOCK_PATTERN_UTILS =
+            "com.android.internal.widget.LockPatternUtils";
+    private static final String LOCKSCREEN_CREDENTIAL =
+            "com.android.internal.widget.LockscreenCredential";
 
-    // NOTE: When modifying this, make sure credential sufficiency validation logic is intact.
-    public static final int CREDENTIAL_TYPE_NONE = -1;
     public static final int CREDENTIAL_TYPE_PATTERN = 1;
-    // This is the legacy value persisted on disk. Never return it to clients, but internally
-    // we still need it to handle upgrade cases.
-    public static final int CREDENTIAL_TYPE_PASSWORD_OR_PIN = 2;
     public static final int CREDENTIAL_TYPE_PIN = 3;
-    public static final int CREDENTIAL_TYPE_PASSWORD = 4;
 
-    private String fakePassword = "114514";
-    private String realPassword = "1919810";
-    private String actionType = "sh";
-    private String actionCommand = "whoami";
-    private String useRegex = "false";
-    private String skipRealPassword = "true";
-    private String pamStyle = "false";
-    private String commandTimeout = "5";
-    private String dynamicLoad = "false";
+    private volatile String fakePassword = "114514";
+    private volatile String realPassword = "1919810";
+    private volatile String actionType = "sh";
+    private volatile String actionCommand = "whoami";
+    private volatile boolean useRegex;
+    private volatile boolean skipRealPassword = true;
+    private volatile boolean pamStyle;
+    private volatile long commandTimeout = 5;
 
-    public Process sudo(String cmd, String auInput) throws IOException {
-        Log.i(TAG, "sudo: " + cmd);
-        ProcessBuilder pb = new ProcessBuilder("su", "-c", cmd);
-        if (auInput != null) pb.environment().put("AU_INPUT", auInput);
-        // never read the output: an undrained pipe fills up (~64KB) and blocks the
-        // command before it can exit, which the PAM waitFor would report as a timeout
-        // Android ProcessBuilder has no Redirect.DISCARD; /dev/null achieves the same
-        pb.redirectOutput(new java.io.File("/dev/null"));
-        pb.redirectError(new java.io.File("/dev/null"));
-        return pb.start();
-    }
-    public Process system(String cmd, String auInput) throws IOException {
-        Log.i(TAG, "system: " + cmd);
-        ProcessBuilder pb = new ProcessBuilder("sh", "-c", cmd);
-        if (auInput != null) pb.environment().put("AU_INPUT", auInput);
-        // Android ProcessBuilder has no Redirect.DISCARD; /dev/null achieves the same
-        pb.redirectOutput(new java.io.File("/dev/null"));
-        pb.redirectError(new java.io.File("/dev/null"));
-        return pb.start();
-    }
+    private SharedPreferences preferences;
+    private SharedPreferences.OnSharedPreferenceChangeListener preferenceListener;
 
-    private void notifyAppConfigFallbackNeeded() {
-        if (fallbackNotified >= 2) return;
-        fallbackNotified ++;    // also notify the first time user tries to unlock, in case we started too early that ActivityThread isn't a thing
-        try {
-            // currentApplication() is null this early in SystemUI startup; the system
-            // context is created on demand and can sendBroadcast without an Application
-            Object thread = Class.forName("android.app.ActivityThread").getMethod("currentActivityThread").invoke(null);
-            android.content.Context ctx = (android.content.Context) thread.getClass().getMethod("getSystemContext").invoke(thread);
-            android.content.Intent i = new android.content.Intent(ACTION_CONFIG_FALLBACK_NEEDED);
-            i.setPackage(TARGET_PNAME);
-            ctx.sendBroadcast(i);
-            Log.i(TAG, "config unreadable, asked app for compat fallback");
-        } catch (Throwable t) {
-            Log.e(TAG, "notifyAppConfigFallbackNeeded failed", t);
-        }
-    }
-
-    @SuppressLint("SdCardPath")
-    public void initConfig(){
-        try {
-            Properties properties = new Properties();
-            FileReader f = null;
-            try {
-                f = new FileReader(CONFIG_PATH);
-            } catch (Exception e) {
-                try {
-                    f = new FileReader(CONFIG_PATH_FALLBACK);   // make sure module can work if migration process hasn't been started
-                } catch (Exception ignored) {
-                    notifyAppConfigFallbackNeeded();
-                    if (fallbackNotified >= 2){
-                        Thread.sleep(1000);
-                        Log.i(TAG, "Reloading config with fallback");
-                        // this is the last chance we load config before actually unlocks. must wait until file actually got written.
-                        // we can't wait for it the right way either since we can't easily add callback listeners.
-                        f = new FileReader(CONFIG_PATH_FALLBACK); // read again
-                    }
-                }
-            }
-//            Log.i(TAG, "$CONFIG_PATH_FALLBACK is " + f);
-            properties.load(f);
-            fakePassword = properties.getProperty("fakePassword", "114514");
-            realPassword = properties.getProperty("realPassword", "1919810"); // nobody sets 1919810 as real password , right ???
-            actionType = properties.getProperty("actionType", "sh");
-            actionCommand = properties.getProperty("actionCommand", "whoami"); // dont do anything if unset
-            useRegex = properties.getProperty("useRegex", "false");
-            skipRealPassword = properties.getProperty("skipRealPassword", "true");
-            pamStyle = properties.getProperty("pamStyle", "false");
-            commandTimeout = properties.getProperty("commandTimeout", "5");
-            dynamicLoad = properties.getProperty("dynamicLoad", "false");
-        } catch (Exception e) {
-            if (e.getMessage() != null) Log.e(TAG, e.getMessage());
-            if (e.getClass() != FileNotFoundException.class){
-                e.printStackTrace();
-            }
-        }
+    @Override
+    public void onModuleLoaded(ModuleLoadedParam param) {
+        log(Log.INFO, TAG, "Module loaded in " + param.getProcessName()
+                + " on " + getFrameworkName() + " " + getFrameworkVersion());
     }
 
     @Override
-    public void handleLoadPackage(XC_LoadPackage.LoadPackageParam lpparam) throws Throwable {
-        Log.i(TAG, "handleLoadPackage: Loaded app " + lpparam.packageName);
-        if (lpparam.packageName.equals(TARGET_PNAME)){
-            return; // don't trigger initConfig() on itself
+    public void onPackageReady(PackageReadyParam param) {
+        if (!SYSTEMUI_PNAME.equals(param.getPackageName()) || !param.isFirstPackage()) return;
+
+        try {
+            preferences = getRemotePreferences(PREFS_NAME);
+            loadConfig(preferences);
+            preferenceListener = (sharedPreferences, key) -> loadConfig(sharedPreferences);
+            preferences.registerOnSharedPreferenceChangeListener(preferenceListener);
+            hookCredentialCheck(param.getClassLoader());
+        } catch (Throwable throwable) {
+            log(Log.ERROR, TAG, "Failed to initialize SystemUI hook", throwable);
         }
-        initConfig();
-        Class<?> LockPatternUtils = XposedHelpers.findClass("com.android.internal.widget.LockPatternUtils", lpparam.classLoader);
-        XposedBridge.hookAllMethods(LockPatternUtils, "checkCredential", new XC_MethodHook() {
-            @Override
-            protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-                super.beforeHookedMethod(param);
-                if (fallbackNotified > 0 || Objects.equals(dynamicLoad, "true")){
-                    initConfig();   // load config again for debugging or fallback
-                }
-                Log.i(TAG, "beforeHookedMethod: Hooked " + param.method.getName());
-                Object mCredential = param.args[0];
-                Log.d(TAG, "Cred: " + param.args[1].getClass());
-                byte[] cred = (byte[])(XposedHelpers.callMethod(mCredential, "getCredential")); // from android 14
-                String credStr = new String(cred);
-                int credType = (int)XposedHelpers.callMethod(mCredential, "getType");
-                if (credStr.equals(realPassword)) {
-                    Log.i(TAG, "realPassword detected, suppressing logs");
-                }
-                else {
-                    Log.d(TAG, "credStr: " + credStr);
-                    Log.d(TAG, "credBytes: " + cred.length + Arrays.toString(cred));
-                }
-                Log.d(TAG, "credType: " + credType);
-                boolean matched;
-                if (Objects.equals(useRegex, "true")) {
-                    try {
-                        matched = credStr.matches(fakePassword); // regex match, so ".+" matches any input
-                    } catch (Exception e) {
-                        matched = credStr.equals(fakePassword); // invalid regex: fall back to literal match
-                    }
-                } else {
-                    matched = credStr.equals(fakePassword);
-                }
-                // skipRealPassword: the real password unlocks on its own, and skipping keeps it out of the command's environment
-                if (matched && !(Objects.equals(skipRealPassword, "true") && credStr.equals(realPassword))){
-                    Log.i(TAG, "replaceCred: detected");
-                    boolean pam = Objects.equals(pamStyle, "true");
-                    boolean unlock = true; // no command run (i.e. do nothing) means unlock
-                    try {
-                        Process p = null;
-                        String auInput = pam ? credStr : null;
-                        if (actionType.contains("sh")) { // foolproof
-                            p = system(actionCommand, auInput);
-                        } else if (actionType.contains("sudo")) {
-                            p = sudo(actionCommand, auInput);
-                        }
-                        if (pam && p != null) { // pam_exec style: the command's exit status decides unlocking
-                            long timeoutSec;
-                            try {
-                                timeoutSec = Long.parseLong(commandTimeout.trim());
-                                if (timeoutSec <= 0) throw new NumberFormatException();
-                            } catch (Exception e) {
-                                timeoutSec = 5;
-                            }
-                            if (p.waitFor(timeoutSec, TimeUnit.SECONDS)) { // don't hang SystemUI forever
-                                int code = p.exitValue();
-                                unlock = code == 0;
-                                Log.i(TAG, "actionCommand exit code: " + code);
-                            } else {
-                                p.destroyForcibly();
-                                unlock = false;
-                                Log.w(TAG, "actionCommand timed out, not unlocking");
-                            }
-                        }
-                    } catch (Exception ignored) {}
-                    if (unlock) {
-                        // replace with real password
-                        param.args[0] = XposedHelpers.newInstance(mCredential.getClass(), credType, (CharSequence) realPassword);
-                        // this is the hacky way for less stability but more compatibility
-                        // You will need to track the logcat with `adb logcat | grep alternativeUnlockHook` for more details about "how to convert my pattern to a string"
-                        Log.i(TAG, "replaceCred: replaced");
-                    }
-                }
+    }
+
+    private void hookCredentialCheck(ClassLoader classLoader) throws ClassNotFoundException {
+        Class<?> target = classLoader.loadClass(LOCK_PATTERN_UTILS);
+        int hooked = 0;
+        for (Method method : target.getDeclaredMethods()) {
+            if (!"checkCredential".equals(method.getName())) continue;
+            Class<?>[] parameterTypes = method.getParameterTypes();
+            if (parameterTypes.length == 0
+                    || !LOCKSCREEN_CREDENTIAL.equals(parameterTypes[0].getName())) {
+                continue;
             }
-        });
+            method.setAccessible(true);
+            hook(method).setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE).intercept(chain -> {
+                List<Object> originalArgs = chain.getArgs();
+                if (originalArgs.isEmpty() || originalArgs.get(0) == null) {
+                    return chain.proceed();
+                }
+
+                Object credential = originalArgs.get(0);
+                byte[] credentialBytes = (byte[]) invokeNoArgs(credential, "getCredential");
+                String credentialString = new String(credentialBytes, StandardCharsets.UTF_8);
+                int credentialType = (int) invokeNoArgs(credential, "getType");
+
+                if (credentialString.equals(realPassword)) {
+                    log(Log.INFO, TAG, "Real password detected; suppressing credential logs");
+                } else {
+                    log(Log.DEBUG, TAG, "Credential type=" + credentialType
+                            + " bytes=" + credentialBytes.length + Arrays.toString(credentialBytes));
+                    if (credentialType == CREDENTIAL_TYPE_PATTERN) {
+                        // Android encodes pattern cells as ASCII '1' through '9'. This explicit
+                        // value is needed once during pattern setup; see the README instructions.
+                        log(Log.DEBUG, TAG, "Pattern credential code=" + credentialString);
+                    }
+                }
+
+                boolean matched = matchesAlternativeCredential(credentialString);
+                if (!matched || (skipRealPassword && credentialString.equals(realPassword))) {
+                    return chain.proceed();
+                }
+
+                log(Log.INFO, TAG, "Alternative credential detected");
+                if (!runAction(credentialString)) return chain.proceed();
+
+                Object[] replacementArgs = originalArgs.toArray();
+                Object replacementCredential =
+                        createCredential(credential.getClass(), credentialType, realPassword);
+                replacementArgs[0] = replacementCredential;
+                log(Log.INFO, TAG, "Credential replaced");
+                try {
+                    return chain.proceed(replacementArgs);
+                } finally {
+                    // LockPatternUtils performs the Binder check synchronously. Its caller owns
+                    // the original credential, so explicitly clear the replacement created here.
+                    try {
+                        invokeNoArgs(replacementCredential, "zeroize");
+                    } catch (Throwable throwable) {
+                        log(Log.WARN, TAG, "Failed to zeroize replacement credential", throwable);
+                    }
+                }
+            });
+            hooked++;
+        }
+        if (hooked == 0) {
+            throw new NoSuchMethodError(LOCK_PATTERN_UTILS + ".checkCredential");
+        }
+        log(Log.INFO, TAG, "Hooked " + hooked + " checkCredential overload(s)");
+    }
+
+    private void loadConfig(SharedPreferences prefs) {
+        fakePassword = prefs.getString("fakePassword", "114514");
+        realPassword = prefs.getString("realPassword", "1919810");
+        actionType = prefs.getString("actionType", "sh");
+        actionCommand = prefs.getString("actionCommand", "whoami");
+        useRegex = Boolean.parseBoolean(prefs.getString("useRegex", "false"));
+        skipRealPassword = Boolean.parseBoolean(prefs.getString("skipRealPassword", "true"));
+        pamStyle = Boolean.parseBoolean(prefs.getString("pamStyle", "false"));
+        try {
+            commandTimeout = Long.parseLong(prefs.getString("commandTimeout", "5").trim());
+            if (commandTimeout <= 0) commandTimeout = 5;
+        } catch (RuntimeException ignored) {
+            commandTimeout = 5;
+        }
+        log(Log.INFO, TAG, "Configuration loaded from Xposed Remote Preferences");
+    }
+
+    private boolean matchesAlternativeCredential(String credential) {
+        if (!useRegex) return credential.equals(fakePassword);
+        try {
+            return credential.matches(fakePassword);
+        } catch (RuntimeException ignored) {
+            return credential.equals(fakePassword);
+        }
+    }
+
+    private boolean runAction(String credential) {
+        Process process = null;
+        try {
+            String input = pamStyle ? credential : null;
+            if (actionType.contains("sh")) {
+                process = startProcess(new String[]{"sh", "-c", actionCommand}, input);
+            } else if (actionType.contains("sudo")) {
+                process = startProcess(new String[]{"su", "-c", actionCommand}, input);
+            }
+
+            if (!pamStyle || process == null) return true;
+            if (!process.waitFor(commandTimeout, TimeUnit.SECONDS)) {
+                process.destroyForcibly();
+                log(Log.WARN, TAG, "Action timed out; credential not replaced");
+                return false;
+            }
+            int exitCode = process.exitValue();
+            log(Log.INFO, TAG, "Action exit code=" + exitCode);
+            return exitCode == 0;
+        } catch (Exception exception) {
+            log(Log.ERROR, TAG, "Action failed", exception);
+            return !pamStyle;
+        }
+    }
+
+    private Process startProcess(String[] command, String input) throws IOException {
+        ProcessBuilder builder = new ProcessBuilder(command);
+        if (input != null) builder.environment().put("AU_INPUT", input);
+        builder.redirectOutput(new File("/dev/null"));
+        builder.redirectError(new File("/dev/null"));
+        return builder.start();
+    }
+
+    private static Object invokeNoArgs(Object receiver, String methodName) throws Exception {
+        Method method = findDeclaredMethod(receiver.getClass(), methodName);
+        method.setAccessible(true);
+        return method.invoke(receiver);
+    }
+
+    private static Method findDeclaredMethod(Class<?> type, String methodName,
+            Class<?>... parameterTypes) throws NoSuchMethodException {
+        for (Class<?> current = type; current != null; current = current.getSuperclass()) {
+            try {
+                return current.getDeclaredMethod(methodName, parameterTypes);
+            } catch (NoSuchMethodException ignored) {
+                // Some OEMs return a LockscreenCredential subclass whose accessors are inherited.
+            }
+        }
+        throw new NoSuchMethodException(type.getName() + "." + methodName);
+    }
+
+    private static Object createCredential(Class<?> credentialClass, int type, String password)
+            throws Exception {
+        for (Constructor<?> constructor : credentialClass.getDeclaredConstructors()) {
+            Class<?>[] parameters = constructor.getParameterTypes();
+            if (parameters.length != 2 || parameters[0] != int.class) continue;
+            constructor.setAccessible(true);
+            if (parameters[1] == byte[].class) {
+                return constructor.newInstance(type, password.getBytes(StandardCharsets.UTF_8));
+            }
+            if (CharSequence.class.isAssignableFrom(parameters[1])) {
+                return constructor.newInstance(type, password);
+            }
+        }
+
+        String factory = type == CREDENTIAL_TYPE_PIN ? "createPin" : "createPassword";
+        if (type == CREDENTIAL_TYPE_PATTERN) factory = "createPattern";
+        Method method = credentialClass.getDeclaredMethod(factory, CharSequence.class);
+        method.setAccessible(true);
+        return method.invoke(null, password);
     }
 }

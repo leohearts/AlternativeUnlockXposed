@@ -42,9 +42,9 @@ It *should* also work on other architectures .
 ## HowToUse
 
 - Install Magisk
-- Install LSPosed
+- Install an Xposed framework with modern libxposed API 101 support or newer
 - Install this module
-- Activate this module in LSPosed settings (It automatically enables for SystemUI)
+- Activate this module for SystemUI in your Xposed manager
 - Launch AlternativeUnlockXposed, allow superuser access, set your primary password and alternative password
 - (optional) Setup what to do when entered the alternative PIN: change action to sudo, and set your command.
 e.g. : ``for i in `pm list packages | grep -i -E 'telegram|sagernet|twitter|discord|tinder' | cut -d : -f 2` ; do pm disable $i; done``
@@ -57,7 +57,9 @@ e.g. : `if [ "$AU_INPUT" = $(date +%m%H%M) ]; then exit 0; else exit 1; fi`
 If you are using this software, please consider to give it a star ⭐ on [Github](https://github.com/leohearts/AlternativeUnlockXposed) so we can know how many people are using it, since it doesn't contain any kind of tracking code.
 
 > [!NOTE]
-> You may need to set mount namespace to system global namespace and disable mount namespace isolation in your superuser app (e.g.  Magisk, Apatch) to work on some devices.
+> The libxposed API 102 build uses Xposed Remote Preferences for configuration. Existing
+> `/data/local/tmp/alternativePass.properties` settings are imported once; new settings no
+> longer depend on SystemUI being able to read that file.
 
 
 <details><summary>Here's how to use this module if you use <code>Pattern</code> for screen lock</summary>

@@ -3,6 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <application
+        android:name=".AlternativeUnlockApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -21,28 +22,18 @@
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="de.robv.android.xposed.category.MODULE_SETTINGS" />
+            </intent-filter>
         </activity>
 
-        <receiver
-            android:name=".CompatConfigReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="com.leohearts.alternativeUnlockHook.action.CONFIG_FALLBACK_NEEDED" />
-            </intent-filter>
-        </receiver>
-
-        <meta-data
-            android:name="xposedmodule"
-            android:value="true" />
-        <meta-data
-            android:name="xposeddescription"
-            android:value="Alternative Unlock" />
-        <meta-data
-            android:name="xposedminversion"
-            android:value="52+" />
-        <meta-data
-            android:name="xposedscope"
-            android:resource="@array/hook_scope" />
+        <provider
+            android:name="io.github.libxposed.service.XposedProvider"
+            android:authorities="${applicationId}.XposedService"
+            android:exported="true"
+            tools:ignore="ExportedContentProvider" />
     </application>
 
 </manifest>
