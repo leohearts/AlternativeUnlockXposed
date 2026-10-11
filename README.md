@@ -11,14 +11,14 @@
 <b><i><p align="center">Unlock your Android phone with an alternative PIN. (Xposed, Root)</p></i></b>
 </p>
 
-This app provides an reliable way to run something when providing a specific, wrong PIN on your Android lock screen.
+This app provides a reliable way to run commands when entering a specific, wrong PIN on your Android lock screen.
 
-Unlike [Duress](https://play.google.com/store/apps/details?id=me.lucky.duress&hl=en&gl=US), this app uses Xposed Framework so you can also unlock your phone with a *wrong* PIN, preventing some *social engineering vulunability*😇 And by the way it also works before your first unlock after reboot.
+Unlike [Duress](https://play.google.com/store/apps/details?id=me.lucky.duress&hl=en&gl=US), this app uses Xposed Framework so you can also unlock your phone with a *wrong* PIN, preventing some *social engineering vulnerabilities*😇 And by the way, it also works before your first unlock after a reboot.
 
-## Feature
+## Features
 
 - Alternative PIN to unlock phone
-- Run command on alternative PIN, with root; (also supports pam_exec style to control unlock with your script!)
+- Run commands on alternative PIN with root (also supports pam_exec style to control unlock with your script!)
 - Easy to use user interface
 - Material You design
 
@@ -27,7 +27,7 @@ Currently tested on:
 - Xiaomi HyperOS 3.0.8.0
 - Android 14 (arm64)
 - Android 13 (x86_64)
-- Android 12 (x64_64)
+- Android 12 (x86_64)
 - Android 11 (arm64, LOS 18.1)
 
 Currently NOT working on:
@@ -35,38 +35,38 @@ Currently NOT working on:
 - Samsung OneUI
 - OnePlus OxygenOS
 - Tecno HiOS
-- most other non AOSP
+- most other non-AOSP ROMs
 
 It *should* also work on other architectures .
 
-## HowToUse
+## How to Use
 
 - Install Magisk
 - Install LSPosed
 - Install this module
-- Activate this module in LSPosed settings (It automatically enables for SystemUI)
-- Launch AlternativeUnlockXposed, allow superuser access, set your primary password and alternative password
-- (optional) Setup what to do when entered the alternative PIN: change action to sudo, and set your command.
-e.g. : ``for i in `pm list packages | grep -i -E 'telegram|sagernet|twitter|discord|tinder' | cut -d : -f 2` ; do pm disable $i; done``
+- Activate this module in LSPosed settings (automatically enabled for SystemUI)
+- Launch AlternativeUnlockXposed, grant superuser access, set your real password and alternative password
+- (Optional) Set up what to do when entering the alternative PIN: change action to sudo, and set your command.
+e.g.: ``for i in `pm list packages | grep -i -E 'telegram|sagernet|twitter|discord|tinder' | cut -d : -f 2` ; do pm disable $i; done``
 With "PAM style unlock" enabled, the command receives the entered credential via the `$AU_INPUT` environment variable, and its exit code decides whether the phone unlocks (0 = unlock, anything else = don't).
-e.g. : `if [ "$AU_INPUT" = $(date +%m%H%M) ]; then exit 0; else exit 1; fi`
-- Test your unlock after click "Restart SystemUI"
+e.g.: `if [ "$AU_INPUT" = $(date +%m%H%M) ]; then exit 0; else exit 1; fi`
+- Test your unlock after clicking "Restart SystemUI"
 
-> Pro tip: You can use some automation software to make it easier to customize your commands ! just use a command like `am broadcast -a safety.intent.test` and catch the intent in your favorite app, it could be extended to do some stuff like take a picture, record audio, send a email, etc. like [Automate](https://llamalab.com/automate/) . Note this kind of software can't work before unlock, so just make it an addition to your commands separated with a `;`. 
+> Pro tip: You can use some automation software to make it easier to customize your commands ! just use a command like `am broadcast -a safety.intent.test` and catch the intent in your favorite app, it could be extended to do some stuff like take a picture, record audio, send an email, etc. like [Automate](https://llamalab.com/automate/) . Note this kind of software can't work before unlock, so just make it an addition to your commands separated with a `;`.
 
-If you are using this software, please consider to give it a star ⭐ on [Github](https://github.com/leohearts/AlternativeUnlockXposed) so we can know how many people are using it, since it doesn't contain any kind of tracking code.
+If you are using this software, please consider giving it a star ⭐ on [GitHub](https://github.com/leohearts/AlternativeUnlockXposed) so we can know how many people are using it, since it doesn't contain any kind of tracking code.
 
 > [!NOTE]
-> You may need to set mount namespace to system global namespace and disable mount namespace isolation in your superuser app (e.g.  Magisk, Apatch) to work on some devices.
+> You may need to set mount namespace to system global namespace and disable mount namespace isolation in your superuser app (e.g., Magisk, APatch) for it to work on some devices.
 
 
 <details><summary>Here's how to use this module if you use <code>Pattern</code> for screen lock</summary>
   <ol>
   <li>Install and enable this module, open app and click 'Restart SystemUI'</li>
-  <li>grab logs with <code>adb logcat | grep alternativeUnlockHook</code> or your favorite log viewer (as <code>Debug</code> level)</li>
+  <li>Grab logs with <code>adb logcat | grep alternativeUnlockHook</code> or your favorite log viewer (at <code>Debug</code> level)</li>
   <li>Unlock with your desired fake pattern</li>
   <li>Unlock with your real pattern</li>
-  <li>You'll find two different <code>credStr</code> of your unlocks from logcat , fill them into <code>fakePassword</code> and <code>realPassword</code></li>
+  <li>You'll find two different <code>credStr</code> values from your unlocks in logcat; enter them into <code>fakePassword</code> and <code>realPassword</code></li>
   <li>Done! Now click 'Restart SystemUI' .<br>
   </ol>
   <img src=https://github.com/user-attachments/assets/10522be3-d7de-4254-ad15-64b497700d38 />
@@ -93,19 +93,19 @@ Furthermore, since the fake password will be replaced with the real one, the fak
 - [x] Support PIN unlock
 - [x] Run custom command on alternative PIN
 - [x] User interface
-- [x] Run different commands on multiple fake password (implemented with pam_exec style)
-- [x] Support more lockscreen modes
+- [x] Run different commands on multiple fake passwords (implemented with pam_exec style)
+- [x] Support more lock screen modes
 - [ ] Zygisk version (?)
 - [ ] Require authentication for settings activity
 - [ ] Option to hide the app from launcher ~~(I don't need it because I use SmartLauncher)~~
 
 ## Contributing
 
-This is a **security focused** app, at least for it's usage. So before submitting you pull request, please note:
+This is a **security focused** app, at least for its usage. So before submitting your pull request, please note:
 
 - Does this introduce any **security** weakness or **privacy** concern ?
 - Is this **compatible** with existing installations, or does it **break** on some devices ? Does this use a feature that only present in some specific software/hardware environments ?
-- We don't accept any **AI usage** for coding or documentation for **first-time contributors** . For existing contributors, please review every line of code and test it against a reasonable amount of devices/AVDs. Please keep the code simple and maintainable :3
+- We don't accept any **AI usage** for coding or documentation for **first-time contributors** . For existing contributors, please review every line of code and test it against a reasonable number of devices/AVDs. Please keep the code simple and maintainable :3
 
 ## Credits
 
