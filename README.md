@@ -35,7 +35,7 @@ Currently NOT working on:
 - Samsung OneUI
 - OnePlus OxygenOS
 - Tecno HiOS
-- most other non-AOSP ROMs
+- most other non-AOSP
 
 It *should* also work on other architectures .
 
