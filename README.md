@@ -41,7 +41,7 @@ It *should* also work on other architectures .
 
 ## How to Use
 
-- Install Magisk
+- Install Magisk / APatch / KernelSU or other root solutions
 - Install LSPosed / Vector / Your favorite Xposed framework
 - Install this module
 - Activate this module in LSPosed settings (automatically enabled for SystemUI)
