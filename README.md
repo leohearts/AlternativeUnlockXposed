@@ -42,7 +42,7 @@ It *should* also work on other architectures .
 ## How to Use
 
 - Install Magisk
-- Install LSPosed
+- Install LSPosed / Vector / Your favorite Xposed framework
 - Install this module
 - Activate this module in LSPosed settings (automatically enabled for SystemUI)
 - Launch AlternativeUnlockXposed, grant superuser access, set your real password and alternative password
