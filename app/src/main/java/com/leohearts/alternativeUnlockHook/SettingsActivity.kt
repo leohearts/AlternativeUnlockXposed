@@ -393,7 +393,7 @@ fun SettingsBase( modifier: Modifier = Modifier) {
                     setTitle.value = "When fake password provided"
                     setKey.value = "actionType"
                     setHint.value =
-                        "Available options: \nsh: run command with SystemUI permission (platform_app)\nsudo: run command with root"
+                        "Available options: \nsh: run command with SystemUI permissions (platform_app)\nsudo: run command with root"
                 }) {
                     ListItem(
                         headlineContent = { Text("When fake password provided") },
@@ -523,7 +523,7 @@ fun SettingsBase( modifier: Modifier = Modifier) {
                 }) {
                     ListItem(
                         headlineContent = { Text("Compatibility mode") },
-                        supportingContent = { Text("Mirror the config to SystemUI's private directory for cases where the hook can not read /data/local/tmp. Auto-enabled on hook read failure.") },
+                        supportingContent = { Text("Mirror the config to SystemUI's private directory for cases where the hook cannot read /data/local/tmp. Auto-enabled on hook read failure.") },
                         leadingContent = {
                             Icon(
                                 Icons.Rounded.Settings,
@@ -553,7 +553,7 @@ fun SettingsBase( modifier: Modifier = Modifier) {
                 }) {
                     ListItem(
                         headlineContent = { Text("Hide real password from UI") },
-                        supportingContent = { Text("Add some protection to shoulder surfing") },
+                        supportingContent = { Text("Add some protection against shoulder surfing") },
                         leadingContent = {
                             Icon(
                                 Icons.Rounded.Settings,
