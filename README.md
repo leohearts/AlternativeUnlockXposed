@@ -111,3 +111,6 @@ This is a **security focused** app, at least for it's usage. So before submittin
 
 - [Duress](https://play.google.com/store/apps/details?id=me.lucky.duress&hl=en&gl=US) (for this idea)
 - Google Bard (for app icon)
+
+
+![Star History Chart](https://api.star-history.com/svg?repos=leohearts/AlternativeUnlockXposed&type=Date)
