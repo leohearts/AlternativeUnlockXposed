@@ -74,9 +74,9 @@ If you are using this software, please consider to give it a star ⭐ on [Github
 
 ## Download 
 
-<a href='https://github.com/leohearts/AlternativeUnlockXposed/releases'><img width=200px src='https://img.shields.io/github/v/release/leohearts/AlternativeUnlockXposed?logo=github' /></a>
-
 <a href='https://apt.izzysoft.de/fdroid/index/apk/com.leohearts.alternativeUnlockHook'><img width=200px src='https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroidButton.svg' /></a>
+
+<a href='https://github.com/leohearts/AlternativeUnlockXposed/releases'><img width=200px src='https://img.shields.io/github/v/release/leohearts/AlternativeUnlockXposed?logo=github' /></a>
 
 ## Screenshots
 
