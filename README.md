@@ -80,8 +80,9 @@ If you are using this software, please consider giving it a star ⭐ on [GitHub]
 
 ## Screenshots
 
-<img width=30% src="https://github.com/leohearts/AlternativeUnlockXposed/assets/24632029/dc4e953e-84d3-44d2-90f8-1fabee249f62">
-<img width=30% src="https://github.com/leohearts/AlternativeUnlockXposed/assets/24632029/14464a95-1d45-47fa-8fc1-1b70584adc46">
+<img width="30%" alt="Screenshot_20261011-134002_AlternativeUnlockXposed" src="https://github.com/user-attachments/assets/12179ddb-4324-4e98-b228-de9f588d0bfd" />
+<img width="30%" alt="Screenshot_20261011-133820_AlternativeUnlockXposed" src="https://github.com/user-attachments/assets/a0627523-3e5b-4c8f-a1c7-e637e9c67aa7" />
+<img width="30%" alt="Screenshot_20261011-133814_AlternativeUnlockXposed" src="https://github.com/user-attachments/assets/37b088a9-46ed-4c49-b37e-22507107bb3c" />
 
 ## How does it work ?
 
