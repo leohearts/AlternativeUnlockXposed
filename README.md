@@ -22,16 +22,25 @@ Unlike [Duress](https://play.google.com/store/apps/details?id=me.lucky.duress&hl
 - Easy to use user interface
 - Material You design
 
+<details><summary>This works with AOSP-based systems from Android 11-17, plus Xiaomi HyperOS 3. Full compatibility list:</summary>
 Currently tested on:
-- Android 11-17 (LineageOS, x86_64 and arm64)
+- Android 17 (arm64, LineageOS 24)
+- Android 16 (arm64, LineageOS 23.2)
+- Android 15 (arm64, LineageOS 22.1)
 - Xiaomi HyperOS 3.0.8.0
+- Android 14 (arm64)
+- Android 13 (x86_64)
+- Android 12 (x86_64)
+- Android 11 (arm64, LOS 18.1)
 
 Currently NOT working on:
 - Android <= 10
-- Samsung OneUI (WIP)
+- Samsung OneUI
 - OnePlus OxygenOS
 - Tecno HiOS
 - most other non-AOSP
+
+</details>
 
 It *should* also work on other architectures and devices if the system isn't cooked too much.
 
