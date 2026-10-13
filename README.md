@@ -52,20 +52,40 @@ It *should* also work on other architectures and devices if the system isn't coo
 - (Optional) Set up what to do when entering the alternative PIN: change action to sudo, and set your command.
   - With "PAM style unlock" enabled, the command receives the entered credential via the `$AU_INPUT` environment variable, and its exit code decides whether the phone unlocks (0 = unlock, anything else = don't). See Examples below.
   - <details><summary>Examples:</summary>
-    <ol>
-      <li>Send a notification to your Telegram/Discord/Webhook:</li>
-      <code>curl https://api.telegram.org/bot(your_token)/sendMessage --json '{"chat_id": (your_user_id), "text": "Phone unlocked with '$AU_INPUT'"}' & true;</code>
-      <li>Hide and disable apps: </li>
-      <code>for i in `pm list packages | grep -i -E 'telegram|sagernet|twitter|discord|tinder' | cut -d : -f 2` ; do pm disable $i; done;</code>
-      <li>Dynamic PIN based on date and time, with PAM syle unlock enabled: </li>
-      <code>if [ "$AU_INPUT" = $(date +%m%H%M) ]; then exit 0; else exit 1; fi;</code>
-      <li>Uninstall apps: (be extra careful, this is irreversible)</li>
-      <code>for i in `pm list packages | grep -i -E 'torproject|mozilla.fenix|telegram' | cut -d : -f 2` ; do pm uninstall $i; done;</code>
-      <li>Wipe your device(sudo): (Do not test this. You need to grant superuser to SystemUI in advance.)</li>
-      <code>am broadcast -a android.intent.action.MASTER_CLEAR</code>
-    </ol>
+
+    **1. Send a notification to your Telegram/Discord/Webhook:**
+
+    ```bash
+    curl "https://api.telegram.org/bot<your_token>/sendMessage" --json '{"chat_id": <your_user_id>, "text": "Phone unlocked with '$AU_INPUT'"}' & true;
+    ```
+
+    **2. Hide and disable apps:**
+
+    ```bash
+    for i in `pm list packages | grep -i -E 'telegram|sagernet|twitter|discord|tinder' | cut -d : -f 2` ; do pm disable $i; done;
+    ```
+
+    **3. Dynamic PIN based on date and time, with PAM style unlock enabled:**
+
+    ```bash
+    if [ "$AU_INPUT" = $(date +%m%H%M) ]; then exit 0; else exit 1; fi;
+    ```
+
+    **4. Uninstall apps:** (be extra careful, this is irreversible)
+
+    ```bash
+    for i in `pm list packages | grep -i -E 'torproject|mozilla.fenix|telegram' | cut -d : -f 2` ; do pm uninstall $i; done;
+    ```
+
+    **5. Wipe your device (sudo):** (Do not test this. You need to grant superuser to SystemUI in advance.)
+
+    ```bash
+    am broadcast -a android.intent.action.MASTER_CLEAR
+    ```
+
     Grab some of those or use your creativity to form a shell script yourself!
-  </details>
+
+    </details>
 - Test your unlock by clicking "Restart SystemUI"
 
 > [!NOTE]
