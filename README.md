@@ -56,11 +56,8 @@ e.g.: `if [ "$AU_INPUT" = $(date +%m%H%M) ]; then exit 0; else exit 1; fi`
 
 > Pro tip: You can use some automation software to make it easier to customize your commands ! just use a command like `am broadcast -a safety.intent.test` and catch the intent in your favorite app, it could be extended to do some stuff like take a picture, record audio, send an email, etc. like [Automate](https://llamalab.com/automate/) . Note this kind of software can't work before unlock, so just make it an addition to your commands separated with a `;`.
 
-If you are using this software, please consider giving it a star ⭐ on [GitHub](https://github.com/leohearts/AlternativeUnlockXposed) so we can know how many people are using it, since it doesn't contain any kind of tracking code.
-
 > [!NOTE]
 > You may need to set mount namespace to system global namespace and disable mount namespace isolation in your superuser app (e.g., Magisk, APatch) for it to work on some devices.
-
 
 <details><summary>Here's how to use this module if you use <code>Pattern</code> for screen lock</summary>
   <ol>
@@ -73,6 +70,8 @@ If you are using this software, please consider giving it a star ⭐ on [GitHub]
   </ol>
   <img src=https://github.com/user-attachments/assets/10522be3-d7de-4254-ad15-64b497700d38 />
 </details>
+
+If you are using this software, please consider giving it a star ⭐ on [GitHub](https://github.com/leohearts/AlternativeUnlockXposed) so we can know how many people are using it, since it doesn't contain any kind of tracking code.
 
 ## Download 
 
