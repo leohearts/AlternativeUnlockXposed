@@ -83,7 +83,72 @@ It *should* also work on other architectures and devices if the system isn't coo
     am broadcast -a android.intent.action.MASTER_CLEAR
     ```
 
+    **6. Clear an app's data instead of uninstalling it:**
+
+    ```bash
+    for i in `pm list packages | grep -i -E 'telegram|twitter' | cut -d : -f 2` ; do pm clear $i; done;
+    ```
+
+    **7. Record the screen while the phone is being used (sudo):**
+
+    ```bash
+    (screenrecord --time-limit 180 /data/local/tmp/au.mp4 </dev/null >/dev/null 2>&1 &)
+    ```
+
+    Recent Android versions restrict background `screenrecord`, test it on your device first.
+
+    **8. Cut off and nuke ADB (sudo):**
+
+    ```bash
+    settings put global adb_enabled 0
+    ADBD=$(readlink -f /proc/$(pgrep -x adbd)/exe)
+    kill $(pgrep -x adbd)
+    mount --bind /dev/null "$ADBD"
+    ```
+
+    The last three lines kill adbd and bind-mount `/dev/null` over its binary so init cannot restart it — this survives until you reboot. Since Android 11 adbd lives in an APEX, so `readlink` resolves the real path instead of hardcoding one. This only blocks adb; forensic tools bring their own.
+
+    **9. Turn off root access for ADB, or entirely (sudo):**
+
+    ```bash
+    # 0 = Disabled, 1 = Apps only, 2 = ADB only, 3 = Apps and ADB (default)
+    magisk --sqlite "UPDATE settings SET value=1 WHERE key='root_access'"
+    ```
+
+    `0` also revokes root from this module, so keep it at `1` if you only want to cut off adb. The `root_access` key exists in Magisk ≤ 31 and has been removed on master.
+
+    **10. Delayed wipe — schedule it and walk away (sudo, dangerous):**
+
+    ```bash
+    (sleep 300; am broadcast -a android.intent.action.MASTER_CLEAR) &
+    ```
+
+    **11. Multiple fake passwords in one script (requires PAM style unlock):**
+
+    ```bash
+    case "$AU_INPUT" in
+      # 1111: disable what you don't want to hand over, then unlock
+      1111) for i in `pm list packages | grep -i -E 'telegram|twitter' | cut -d : -f 2` ; do pm disable $i; done
+            exit 0 ;;
+
+      # 2222: schedule a wipe 5 minutes out, and stay locked
+      2222) (sleep 300; am broadcast -a android.intent.action.MASTER_CLEAR) &
+            exit 1 ;;
+
+      # 3333: unlock, but start recording what happens next
+      3333) (screenrecord --time-limit 180 /data/local/tmp/au.mp4 </dev/null >/dev/null 2>&1 &)
+            exit 0 ;;
+
+      # anything else: don't unlock
+      *)    exit 1 ;;
+    esac
+    ```
+
+    You can either bind this whole script to the module, or bind a different command to each fake password.
+
     Grab some of those or use your creativity to form a shell script yourself!
+    
+    \* You also need to make sure to put long tasks, such as web requests to background with '&' to prevent timeout.
 
     </details>
 - Test your unlock by clicking "Restart SystemUI"
