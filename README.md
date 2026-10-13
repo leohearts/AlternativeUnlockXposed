@@ -35,6 +35,13 @@ Currently NOT working on:
 
 It *should* also work on other architectures and devices if the system isn't cooked too much.
 
+
+## Download 
+
+<a href='https://apt.izzysoft.de/fdroid/index/apk/com.leohearts.alternativeUnlockHook'><img width=200px src='https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroidButton.svg' /></a>
+
+<a href='https://github.com/leohearts/AlternativeUnlockXposed/releases'><img width=200px src='https://img.shields.io/github/v/release/leohearts/AlternativeUnlockXposed?logo=github' /></a>
+
 ## How to Use
 
 - Install Magisk / APatch / KernelSU or other root solutions, enable Zygisk (like [NeoZygisk](https://github.com/JingMatrix/NeoZygisk))
@@ -43,15 +50,15 @@ It *should* also work on other architectures and devices if the system isn't coo
 - Activate this module in LSPosed settings (automatically enabled for SystemUI)
 - Launch AlternativeUnlockXposed, grant superuser access, set your real password and alternative password
 - (Optional) Set up what to do when entering the alternative PIN: change action to sudo, and set your command.
-e.g.: ``for i in `pm list packages | grep -i -E 'telegram|sagernet|twitter|discord|tinder' | cut -d : -f 2` ; do pm disable $i; done``
-With "PAM style unlock" enabled, the command receives the entered credential via the `$AU_INPUT` environment variable, and its exit code decides whether the phone unlocks (0 = unlock, anything else = don't).
+  - e.g.: ``curl <your-telegram-webhook> & true; for i in `pm list packages | grep -i -E 'telegram|sagernet|twitter|discord|tinder' | cut -d : -f 2` ; do pm disable $i; done``
+  - With "PAM style unlock" enabled, the command receives the entered credential via the `$AU_INPUT` environment variable, and its exit code decides whether the phone unlocks (0 = unlock, anything else = don't).
 e.g.: `if [ "$AU_INPUT" = $(date +%m%H%M) ]; then exit 0; else exit 1; fi`
-- Test your unlock after clicking "Restart SystemUI"
-
-> Pro tip: You can use some automation software to make it easier to customize your commands ! just use a command like `am broadcast -a safety.intent.test` and catch the intent in your favorite app, it could be extended to do some stuff like take a picture, record audio, send an email, etc. like [Automate](https://llamalab.com/automate/) . Note this kind of software can't work before unlock, so just make it an addition to your commands separated with a `;`.
+- Test your unlock by clicking "Restart SystemUI"
 
 > [!NOTE]
 > You may need to set mount namespace to system global namespace and disable mount namespace isolation in your superuser app (e.g., Magisk, APatch) for it to work on some devices.
+
+> Pro tip: You can use some automation software to make it easier to customize your commands ! just use a command like `am broadcast -a safety.intent.test` and catch the intent in your favorite app, it could be extended to do some stuff like take a picture, record audio, send an email, etc. like [Automate](https://llamalab.com/automate/) . Note this kind of software can't work before decryption, so just make it an addition to your commands separated with a `;`.
 
 <details><summary>Here's how to use this module if you use <code>Pattern</code> for screen lock</summary>
   <ol>
@@ -66,12 +73,6 @@ e.g.: `if [ "$AU_INPUT" = $(date +%m%H%M) ]; then exit 0; else exit 1; fi`
 </details>
 
 If you are using this software, please consider giving it a star ⭐ on [GitHub](https://github.com/leohearts/AlternativeUnlockXposed) so we can know how many people are using it, since it doesn't contain any kind of tracking code.
-
-## Download 
-
-<a href='https://apt.izzysoft.de/fdroid/index/apk/com.leohearts.alternativeUnlockHook'><img width=200px src='https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroidButton.svg' /></a>
-
-<a href='https://github.com/leohearts/AlternativeUnlockXposed/releases'><img width=200px src='https://img.shields.io/github/v/release/leohearts/AlternativeUnlockXposed?logo=github' /></a>
 
 ## Screenshots
 
