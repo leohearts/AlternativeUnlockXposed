@@ -23,14 +23,8 @@ Unlike [Duress](https://play.google.com/store/apps/details?id=me.lucky.duress&hl
 - Material You design
 
 Currently tested on:
-- Android 17 (arm64, LineageOS 24)
-- Android 16 (arm64, LineageOS 23.2)
-- Android 15 (arm64, LineageOS 22.1)
+- Android 11-17 (LineageOS, x86_64 and arm64)
 - Xiaomi HyperOS 3.0.8.0
-- Android 14 (arm64)
-- Android 13 (x86_64)
-- Android 12 (x86_64)
-- Android 11 (arm64, LOS 18.1)
 
 Currently NOT working on:
 - Android <= 10
@@ -39,7 +33,7 @@ Currently NOT working on:
 - Tecno HiOS
 - most other non-AOSP
 
-It *should* also work on other architectures .
+It *should* also work on other architectures and devices if the system isn't cooked too much.
 
 ## How to Use
 
