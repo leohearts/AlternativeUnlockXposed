@@ -50,15 +50,28 @@ It *should* also work on other architectures and devices if the system isn't coo
 - Activate this module in LSPosed settings (automatically enabled for SystemUI)
 - Launch AlternativeUnlockXposed, grant superuser access, set your real password and alternative password
 - (Optional) Set up what to do when entering the alternative PIN: change action to sudo, and set your command.
-  - e.g.: ``curl <your-telegram-webhook> & true; for i in `pm list packages | grep -i -E 'telegram|sagernet|twitter|discord|tinder' | cut -d : -f 2` ; do pm disable $i; done``
-  - With "PAM style unlock" enabled, the command receives the entered credential via the `$AU_INPUT` environment variable, and its exit code decides whether the phone unlocks (0 = unlock, anything else = don't).
-e.g.: `if [ "$AU_INPUT" = $(date +%m%H%M) ]; then exit 0; else exit 1; fi`
+  - With "PAM style unlock" enabled, the command receives the entered credential via the `$AU_INPUT` environment variable, and its exit code decides whether the phone unlocks (0 = unlock, anything else = don't). See Examples below.
+  - <details><summary>Examples:</summary>
+    <ol>
+      <li>Send a notification to your Telegram/Discord/Webhook:</li>
+      <code>curl https://api.telegram.org/bot(your_token)/sendMessage --json '{"chat_id": (your_user_id), "text": "Phone unlocked with '$AU_INPUT'"}' & true;</code>
+      <li>Hide and disable apps: </li>
+      <code>for i in `pm list packages | grep -i -E 'telegram|sagernet|twitter|discord|tinder' | cut -d : -f 2` ; do pm disable $i; done;</code>
+      <li>Dynamic PIN based on date and time, with PAM syle unlock enabled: </li>
+      <code>if [ "$AU_INPUT" = $(date +%m%H%M) ]; then exit 0; else exit 1; fi;</code>
+      <li>Uninstall apps: (be extra careful, this is irreversible)</li>
+      <code>for i in `pm list packages | grep -i -E 'torproject|mozilla.fenix|telegram' | cut -d : -f 2` ; do pm uninstall $i; done;</code>
+      <li>Wipe your device(sudo): (Do not test this. You need to grant superuser to SystemUI in advance.)</li>
+      <code>am broadcast -a android.intent.action.MASTER_CLEAR</code>
+    </ol>
+    Grab some of those or use your creativity to form a shell script yourself!
+  </details>
 - Test your unlock by clicking "Restart SystemUI"
 
 > [!NOTE]
 > You may need to set mount namespace to system global namespace and disable mount namespace isolation in your superuser app (e.g., Magisk, APatch) for it to work on some devices.
 
-> Pro tip: You can use some automation software to make it easier to customize your commands ! just use a command like `am broadcast -a safety.intent.test` and catch the intent in your favorite app, it could be extended to do some stuff like take a picture, record audio, send an email, etc. like [Automate](https://llamalab.com/automate/) . Note this kind of software can't work before decryption, so just make it an addition to your commands separated with a `;`.
+> Pro tip: You can also use some automation software to make it easier to customize your commands ! just use a command like `am broadcast -a safety.intent.test` and catch the intent in your favorite app, it could be extended to do some stuff like take a picture, record audio, send an email, etc. like [Automate](https://llamalab.com/automate/) . Note this kind of software can't work before decryption, so just make it an addition to your commands separated with a `;`.
 
 <details><summary>Here's how to use this module if you use <code>Pattern</code> for screen lock</summary>
   <ol>
