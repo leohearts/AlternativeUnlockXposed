@@ -34,7 +34,7 @@ Currently tested on:
 
 Currently NOT working on:
 - Android <= 10
-- Samsung OneUI
+- Samsung OneUI (WIP)
 - OnePlus OxygenOS
 - Tecno HiOS
 - most other non-AOSP
