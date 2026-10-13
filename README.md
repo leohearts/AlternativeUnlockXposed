@@ -100,13 +100,15 @@ It *should* also work on other architectures and devices if the system isn't coo
     **8. Cut off and nuke ADB (sudo):**
 
     ```bash
-    settings put global adb_enabled 0
-    ADBD=$(readlink -f /proc/$(pgrep -x adbd)/exe)
-    kill $(pgrep -x adbd)
-    mount --bind /dev/null "$ADBD"
+    settings put global adb_enabled 1;
+    ADBD=$(readlink -f /proc/$(pgrep -x adbd)/exe);
+    kill $(pgrep -x adbd);
+    mount /bin/sh "$ADBD";
+    kill $(pgrep -x adbd);
+    settings put global adb_enabled 0;
     ```
 
-    The last three lines kill adbd and bind-mount `/dev/null` over its binary so init cannot restart it — this survives until you reboot. Since Android 11 adbd lives in an APEX, so `readlink` resolves the real path instead of hardcoding one. This only blocks adb; forensic tools bring their own.
+    `adb_enabled 1` first is only there so adbd is running and `readlink` has something to resolve. The next lines kill it and bind-mount another file over its binary, so init cannot exec it again — this survives until you reboot. Since Android 11 adbd lives in an APEX, so `readlink` resolves the real path instead of hardcoding one.
 
     **9. Turn off root access for ADB, or entirely (sudo):**
 
